@@ -1,9 +1,10 @@
 from flask import Flask
+
 from app.config import SECRET_KEY, UPLOAD_FOLDER, BASE_DIR
-
 from app.routes import index, login, logout, documents, download, share, admin, health
+from app.components.auth_session.session_config import configure_session
 
-def create_app():
+def create_app(test_config=None):
     app = Flask(
         __name__,
         template_folder=str(BASE_DIR / "templates"),
@@ -12,6 +13,9 @@ def create_app():
 
     app.secret_key = SECRET_KEY
     app.config["UPLOAD_FOLDER"] = str(UPLOAD_FOLDER)
+    
+    # Configure session management for authentication (Authentication & Session)
+    configure_session(app)
 
     app.register_blueprint(index.bp)
     app.register_blueprint(login.bp)
