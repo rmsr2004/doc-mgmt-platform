@@ -3,10 +3,7 @@ import os
 import sys
 
 import pytest
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "web"))
-
-from app.app import create_app 
+from app.app import create_app
 
 @pytest.fixture()
 def app():
