@@ -23,6 +23,9 @@ def create_app(test_config=None):
     app.config["UPLOAD_FOLDER"] = str(UPLOAD_FOLDER)
     app.jinja_env.autoescape = True
     
+    # Trust exactly one reverse proxy in front of Flask
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+    
     # Configure session management for authentication (Authentication & Session)
     session_config.configure_session(app)
     
