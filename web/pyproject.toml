@@ -10,6 +10,7 @@ dependencies = [
     "monkeypatch>=0.1rc3",
     "psycopg2-binary>=2.9.11",
     "pytest>=9.0.3",
+    "requests>=2.33.1",
 ]
 
 [tool.pytest.ini_options]
