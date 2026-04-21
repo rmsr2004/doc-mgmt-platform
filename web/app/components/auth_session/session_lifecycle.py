@@ -8,6 +8,7 @@ from flask import session
 
 from app.config import get_db
 from app import db
+from app.components.auth_session import csrf
 from app.shared.result.Result import Result, Error
 
 def login_user(username: str, password: str) -> Result:
@@ -34,8 +35,12 @@ def open_session(user) -> None:
     session.clear()
     session["user_id"]  = user[0]
     session["username"] = user[1]
+    session["is_admin"] = user[1] == "admin"
+    session.permanent = True
+    csrf.rotate_csrf_token()
     return
 
 def close_session() -> None:
+    csrf.rotate_csrf_token()
     session.clear()
     return
