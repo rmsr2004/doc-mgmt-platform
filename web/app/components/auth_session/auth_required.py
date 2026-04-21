@@ -1,3 +1,9 @@
+"""
+auth_required.py
+----------------
+Decorator-based enforcement of authentication on protected routes.
+"""
+
 import functools
 import flask
 
