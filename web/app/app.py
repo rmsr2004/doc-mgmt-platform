@@ -1,4 +1,5 @@
 from flask import Flask
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.config import SECRET_KEY, UPLOAD_FOLDER, BASE_DIR
 from app.routes import index, documents, download, share, admin, health
@@ -14,6 +15,9 @@ def create_app(test_config=None):
 
     app.secret_key = SECRET_KEY
     app.config["UPLOAD_FOLDER"] = str(UPLOAD_FOLDER)
+    
+    # Trust exactly one reverse proxy in front of Flask
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
     
     # Configure session management for authentication (Authentication & Session)
     configure_session(app)
