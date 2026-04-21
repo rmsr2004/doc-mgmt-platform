@@ -4,6 +4,8 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    depends_on:
+      - web
     volumes:
       - ./web/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./web/nginx/certs:/etc/nginx/certs:ro
