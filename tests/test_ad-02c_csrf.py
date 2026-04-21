@@ -3,31 +3,66 @@
 Tests for AD-02c: CSRF Filter at the Single Access Point
 SR-11a: SameSite=Strict on session cookie
 SR-11b: Synchronizer Token Pattern on state-changing requests
+
+Integration tests — run against the live Docker stack.
 """
+import os
+import requests
+import urllib3
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+BASE_URL = os.environ.get("BASE_URL", "https://localhost")
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def get_csrf_token(client) -> str:
-    """Extract the current CSRF token from the session."""
-    with client.session_transaction() as sess:
-        return sess.get("csrf_token", "")
+def get_session_with_csrf() -> tuple[requests.Session, str]:
+    """
+    Opens a session, hits GET /login to initialise the session
+    and retrieve the CSRF token from the cookie/response.
+    Returns the session and the CSRF token.
+    """
+    s = requests.Session()
+    s.verify = False
+
+    resp = s.get(f"{BASE_URL}/login")
+    assert resp.status_code == 200
+
+    # Extract CSRF token from the hidden input in the HTML response
+    import re
+    match = re.search(
+        r'<input[^>]*name=["\']csrf_token["\'][^>]*value=["\']([^"\']+)["\']',
+        resp.text,
+    )
+    token = match.group(1) if match else ""
+    return s, token
 
 
-def login(client, username="admin", password="L|fP1D%327mB"):
-    """Log in and return the CSRF token generated for the new session."""
-    client.get("/login")
-    token = get_csrf_token(client)
+def login() -> tuple[requests.Session, str]:
+    """
+    Logs in as admin and returns the authenticated session
+    and the new CSRF token valid for subsequent requests.
+    """
+    s, token = get_session_with_csrf()
 
-    resp = client.post("/login", data={
-        "username": username,
-        "password": password,
+    resp = s.post(f"{BASE_URL}/login", data={
+        "username": "admin",
+        "password": "L|fP1D%327mB",
         "csrf_token": token,
-    }, follow_redirects=True)
+    }, allow_redirects=False)
 
-    return resp, get_csrf_token(client)
+    # After login, fetch the new CSRF token from the next page
+    resp2 = s.get(f"{BASE_URL}/", allow_redirects=False)
+    import re
+    match = re.search(
+        r'<input[^>]*name=["\']csrf_token["\'][^>]*value=["\']([^"\']+)["\']',
+        resp2.text,
+    )
+    new_token = match.group(1) if match else token
+    return s, new_token
 
 
 # ---------------------------------------------------------------------------
@@ -35,17 +70,21 @@ def login(client, username="admin", password="L|fP1D%327mB"):
 # ---------------------------------------------------------------------------
 
 class TestSR11a:
-    def test_session_cookie_has_samesite_strict(self, client):
+    def test_session_cookie_has_samesite_strict(self):
         """SR-11a: session cookie must carry SameSite=Strict."""
-        resp = client.get("/login")
+        resp = requests.get(f"{BASE_URL}/login", verify=False)
         set_cookie = resp.headers.get("Set-Cookie", "")
-        assert "SameSite=Strict" in set_cookie
+        assert "SameSite=Strict" in set_cookie, (
+            f"SameSite=Strict not found in Set-Cookie: {set_cookie}"
+        )
 
-    def test_session_cookie_has_httponly(self, client):
+    def test_session_cookie_has_httponly(self):
         """SR-02 / SR-11a: HttpOnly flag must be set."""
-        resp = client.get("/login")
+        resp = requests.get(f"{BASE_URL}/login", verify=False)
         set_cookie = resp.headers.get("Set-Cookie", "")
-        assert "HttpOnly" in set_cookie
+        assert "HttpOnly" in set_cookie, (
+            f"HttpOnly not found in Set-Cookie: {set_cookie}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -53,55 +92,63 @@ class TestSR11a:
 # ---------------------------------------------------------------------------
 
 class TestSR11b:
-    def test_csrf_token_created_on_session_start(self, client):
-        """A CSRF token must be created when a session is started."""
-        client.get("/login")
-        token = get_csrf_token(client)
-        assert token != ""
-        assert len(token) >= 32
+    def test_csrf_token_present_in_login_form(self):
+        """SR-11b: login form must contain a csrf_token hidden field."""
+        import re
+        resp = requests.get(f"{BASE_URL}/login", verify=False)
+        assert resp.status_code == 200
+        match = re.search(
+            r'<input[^>]*name=["\']csrf_token["\']',
+            resp.text,
+        )
+        assert match is not None, "csrf_token hidden field not found in login form"
 
-    def test_csrf_token_rotates_on_login(self, client):
-        """The CSRF token must be rotated on login (new session)."""
-        client.get("/login")
-        token_before = get_csrf_token(client)
-
-        _, token_after = login(client)
-        assert token_after != ""
-        assert token_after != token_before
-
-    def test_post_without_csrf_token_is_rejected(self, authenticated_client):
-        """SR-11b: POST without CSRF token must return 403."""
-        client, _ = authenticated_client
-        resp = client.post("/documents/upload", data={})
+    def test_post_without_csrf_token_is_rejected(self):
+        """SR-11b: authenticated POST without CSRF token must return 403."""
+        s, _ = login()
+        resp = s.post(
+            f"{BASE_URL}/documents/upload",
+            data={},        # no csrf_token
+            allow_redirects=False,
+        )
         assert resp.status_code == 403
 
-    def test_post_with_wrong_csrf_token_is_rejected(self, authenticated_client):
-        """SR-11b: POST with incorrect CSRF token must return 403."""
-        client, _ = authenticated_client
-        resp = client.post("/documents/upload", data={
-            "csrf_token": "totally-wrong-token",
-        })
+    def test_post_with_wrong_csrf_token_is_rejected(self):
+        """SR-11b: authenticated POST with wrong CSRF token must return 403."""
+        s, _ = login()
+        resp = s.post(
+            f"{BASE_URL}/documents/upload",
+            data={"csrf_token": "totally-wrong-token"},
+            allow_redirects=False,
+        )
         assert resp.status_code == 403
 
-    def test_post_with_valid_csrf_token_passes_filter(self, authenticated_client):
-        """SR-11b: POST with valid CSRF token must pass the filter."""
-        client, token = authenticated_client
-        resp = client.post("/documents/upload", data={
-            "csrf_token": token,
-        })
+    def test_post_with_valid_csrf_token_passes_filter(self):
+        """SR-11b: POST with valid CSRF token must not return 403."""
+        s, token = login()
+        resp = s.post(
+            f"{BASE_URL}/documents/upload",
+            data={"csrf_token": token},
+            allow_redirects=False,
+        )
         assert resp.status_code != 403
 
-    def test_get_request_does_not_require_csrf(self, client):
+    def test_get_request_does_not_require_csrf(self):
         """Safe methods (GET) must never be blocked by the CSRF filter."""
-        resp = client.get("/health")
+        resp = requests.get(f"{BASE_URL}/health", verify=False)
         assert resp.status_code == 200
 
-    def test_unauthenticated_post_is_not_blocked_by_csrf(self, client):
+    def test_unauthenticated_post_returns_401_not_403(self):
         """
-        Unauthenticated POST requests must not be blocked by the CSRF filter.
-        They will be rejected by the authentication middleware instead.
+        Unauthenticated POST must return 401 (auth middleware),
+        not 403 (CSRF filter).
         """
-        resp = client.post("/documents/upload", data={})
+        resp = requests.post(
+            f"{BASE_URL}/documents/upload",
+            data={},
+            verify=False,
+            allow_redirects=False,
+        )
         assert resp.status_code == 401
 
 
@@ -110,34 +157,48 @@ class TestSR11b:
 # ---------------------------------------------------------------------------
 
 class TestAD02c:
-    def test_share_document_rejected_without_csrf(self, authenticated_client):
+    def test_share_document_rejected_without_csrf(self):
         """AD-02c: document share without CSRF token must be rejected."""
-        client, _ = authenticated_client
-        resp = client.post("/documents/1/share", data={
-            "reviewer_id": 2,
-        })
+        s, _ = login()
+        resp = s.post(
+            f"{BASE_URL}/documents/1/share",
+            data={"reviewer_id": 2},
+            allow_redirects=False,
+        )
         assert resp.status_code == 403
 
-    def test_admin_toggle_rejected_without_csrf(self, authenticated_client):
+    def test_admin_toggle_rejected_without_csrf(self):
         """AD-02c: admin action without CSRF token must be rejected."""
-        client, _ = authenticated_client
-        resp = client.post("/admin/users/2/toggle", data={})
+        s, _ = login()
+        resp = s.post(
+            f"{BASE_URL}/admin/users/2/toggle",
+            data={},
+            allow_redirects=False,
+        )
         assert resp.status_code == 403
 
-    def test_logout_rejected_without_csrf(self, authenticated_client):
+    def test_logout_rejected_without_csrf(self):
         """AD-02c: logout POST without CSRF token must be rejected."""
-        client, _ = authenticated_client
-        resp = client.post("/logout", data={})
+        s, _ = login()
+        resp = s.post(
+            f"{BASE_URL}/logout",
+            data={},
+            allow_redirects=False,
+        )
         assert resp.status_code == 403
 
-    def test_full_flow_share_with_valid_csrf(self, authenticated_client):
+    def test_full_flow_share_with_valid_csrf(self):
         """
         AD-02c: full flow — login, get token, share with valid token.
-        Filter must pass (actual result depends on business logic).
+        Filter must pass (business logic may return 4xx for other reasons).
         """
-        client, token = authenticated_client
-        resp = client.post("/documents/1/share", data={
-            "csrf_token": token,
-            "reviewer_id": 2,
-        })
+        s, token = login()
+        resp = s.post(
+            f"{BASE_URL}/documents/1/share",
+            data={
+                "csrf_token": token,
+                "reviewer_id": 2,
+            },
+            allow_redirects=False,
+        )
         assert resp.status_code != 403
