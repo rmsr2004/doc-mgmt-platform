@@ -6,4 +6,4 @@ bp = Blueprint("index", __name__)
 def index():
     if session.get("user_id"):
         return redirect(url_for("documents.documents_page"))
-    return redirect(url_for("login.login"))
+    return redirect(url_for("auth_session.login"))

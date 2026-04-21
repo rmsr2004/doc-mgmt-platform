@@ -1,7 +1,7 @@
 import pathlib
 from flask import Blueprint, request, session, redirect, url_for, render_template, flash
 from app.config import get_db, BASE_DIR
-from app.decorators.auth import login_required
+from app.components.auth_session.auth_required import login_required
 from app import db, utils
 
 bp = Blueprint("documents", __name__)

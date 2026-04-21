@@ -1,8 +1,9 @@
 from flask import Flask
 
 from app.config import SECRET_KEY, UPLOAD_FOLDER, BASE_DIR
-from app.routes import index, login, logout, documents, download, share, admin, health
+from app.routes import index, documents, download, share, admin, health
 from app.components.auth_session.session_config import configure_session
+from app.components.auth_session.routes import auth_bp
 
 def create_app(test_config=None):
     app = Flask(
@@ -16,10 +17,10 @@ def create_app(test_config=None):
     
     # Configure session management for authentication (Authentication & Session)
     configure_session(app)
+    
+    app.register_blueprint(auth_bp)
 
     app.register_blueprint(index.bp)
-    app.register_blueprint(login.bp)
-    app.register_blueprint(logout.bp)
     app.register_blueprint(documents.bp)
     app.register_blueprint(download.bp)
     app.register_blueprint(share.bp)
