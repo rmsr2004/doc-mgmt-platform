@@ -1,7 +1,7 @@
 import pathlib
 from flask import Blueprint, request, session, redirect, url_for, render_template, flash
 from app.config import get_db, BASE_DIR
-from app.components.auth_session.auth_required import login_required
+from app.components.auth_session.decorators import login_required
 from app import db, utils
 
 bp = Blueprint("documents", __name__)
@@ -21,6 +21,7 @@ def get_documents_for_user(cur, owner_id):
     return cur.fetchall()
 
 @bp.route("/documents/<int:document_id>")
+@login_required
 def document_details(document_id):
     conn = get_db()
     cur = conn.cursor()
