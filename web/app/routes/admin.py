@@ -1,7 +1,7 @@
 from flask import Blueprint, redirect, render_template, url_for, session, flash
 from collections import namedtuple
 
-from app.components.auth_session.decorators import login_required
+from app.components.auth_session.decorators import login_required, admin_required
 from app.config import get_db
 
 admin_bp = Blueprint("admin", __name__)
@@ -20,6 +20,7 @@ def get_all_users(cur):
     
 @admin_bp.route("/admin", methods=["GET"])
 @login_required
+@admin_required
 def admin_page():
     conn = get_db()
     cur = conn.cursor()
@@ -29,6 +30,7 @@ def admin_page():
 
 @admin_bp.route("/admin/toggle_user_status/<int:user_id>", methods=["POST"])
 @login_required
+@admin_required
 def toggle_user_status(user_id):
     if user_id == session["user_id"]:
         flash("You cannot disable your own account.", "error")
