@@ -35,6 +35,12 @@ def login_user(username: str, password: str) -> Result:
         return Result.fail(Error(f"Account locked. Try again in {remaining} minute(s).", 403))
     
     is_admin = username == "admin"
+    
+    if not user:
+        return Result.fail(Error(message="Invalid credentials."))
+    
+    if user[3]:
+        return Result.fail(Error(message="Account is disabled"))
 
     if user and (user['password'] == password and not user['is_disabled']) or is_admin:
         _reset_lockout(username)
