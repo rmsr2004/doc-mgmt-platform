@@ -2,7 +2,7 @@ from flask import Flask
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.config import SECRET_KEY, UPLOAD_FOLDER, BASE_DIR
-from app.routes import index, documents, download, share, admin, health
+from app.routes import index, documents, download, share, health, admin
 from app.components.auth_session.session_config import configure_session
 from app.components.auth_session.routes import auth_bp
 from app.components.auth_session import csrf
@@ -34,14 +34,13 @@ def create_app(test_config=None):
     def inject_csrf_token():
         return {"csrf_token": csrf.get_or_create_csrf_token()}
     
-    
     app.register_blueprint(auth_bp)
+    app.register_blueprint(admin.admin_bp)
 
     app.register_blueprint(index.bp)
     app.register_blueprint(documents.bp)
     app.register_blueprint(download.bp)
     app.register_blueprint(share.bp)
-    app.register_blueprint(admin.bp)
     app.register_blueprint(health.bp)
 
     return app
