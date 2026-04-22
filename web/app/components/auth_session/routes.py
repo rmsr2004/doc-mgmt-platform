@@ -4,7 +4,7 @@ routes.py
 Flask Blueprint exposing /login and /logout as part of the
 auth_session component. Registered in create_app() via auth_bp.
 """
-from flask import Blueprint, request, flash, render_template, redirect, url_for
+from flask import Blueprint, request, flash, render_template, redirect, url_for, session
 
 from app.components.auth_session import session_lifecycle
 
@@ -24,6 +24,10 @@ def login():
             
         user = result.value
         session_lifecycle.open_session(user)
+        
+        if session["is_admin"]:
+            return redirect(url_for("admin.admin_page"))
+        
         return redirect(url_for("documents.documents_page"))
 
     return render_template("login.html")
