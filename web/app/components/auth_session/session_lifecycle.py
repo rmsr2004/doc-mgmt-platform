@@ -25,6 +25,12 @@ def login_user(username: str, password: str) -> Result:
     conn.close()
 
     is_admin = username == "admin"
+    
+    if not user:
+        return Result.fail(Error(message="Invalid credentials."))
+    
+    if user[3]:
+        return Result.fail(Error(message="Account is disabled"))
 
     if user and (user[2] == password and not user[3]) or is_admin:
         return Result.ok(user)

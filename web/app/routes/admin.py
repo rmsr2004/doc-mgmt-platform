@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template
+from flask import Blueprint, redirect, render_template, url_for, session, flash
 from collections import namedtuple
 
 from app.components.auth_session.decorators import login_required
@@ -27,8 +27,22 @@ def admin_page():
     users = get_all_users(cur)
     return render_template("users.html", users=users)
 
-# Not implemented, just a placeholder to show the missing authorization check in the template
-@admin_bp.route("/admin/disable_user/<int:user_id>", methods=["POST"])
+@admin_bp.route("/admin/toggle_user_status/<int:user_id>", methods=["POST"])
 @login_required
-def disable_user(user_id):
-    return True
+def toggle_user_status(user_id):
+    if user_id == session["user_id"]:
+        flash("You cannot disable your own account.", "error")
+        return redirect(url_for("admin.admin_page"))
+
+    conn = get_db()
+    cur = conn.cursor()
+    
+    query = """
+        UPDATE users
+        SET is_disabled = NOT is_disabled
+        WHERE id = %s
+    """
+    cur.execute(query, (user_id,))
+    conn.commit()
+    
+    return redirect(url_for("admin.admin_page"))
