@@ -6,7 +6,7 @@ Decorators-based enforcement of authentication on protected routes.
 
 import functools
 from time import time
-import flask
+from flask import session, flash, redirect, url_for
 from app.config import get_db
 
 def get_user_by_id(user_id: int) -> dict | None:
@@ -32,24 +32,34 @@ def login_required(fn):
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
         # checks if the user is logged in
-        if "user_id" not in flask.session:
-            flask.flash("Please log in first.", "error")
-            return flask.redirect(flask.url_for("auth_session.login"))
+        if "user_id" not in session:
+            flash("Please log in first.", "error")
+            return redirect(url_for("auth_session.login"))
         
         # checks if the user still exists and is active
-        user = get_user_by_id(flask.session["user_id"])
+        user = get_user_by_id(session["user_id"])
         if user is None or not user["active"]:
-            flask.session.clear()
-            flask.flash("Your account has been disabled.", "error")
-            return flask.redirect(flask.url_for("auth_session.login"))
+            session.clear()
+            flash("Your account has been disabled.", "error")
+            return redirect(url_for("auth_session.login"))
         
         # checks if the session has expired
-        expires_at = flask.session.get("expires_at")
+        expires_at = session.get("expires_at")
         if expires_at and time.time() > expires_at:
-            flask.session.clear()
-            flask.flash("Your session has expired. Please log in again.", "error")
-            return flask.redirect(flask.url_for("auth_session.login"))
+            session.clear()
+            flash("Your session has expired. Please log in again.", "error")
+            return redirect(url_for("auth_session.login"))
         
         return fn(*args, **kwargs)
 
+    return wrapper
+
+def admin_required(fn):
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        if not session["is_admin"]:
+            flash("You do not have permission to access this page.", "error")
+            return redirect(url_for("index.index"))
+        return fn(*args, **kwargs)
+    
     return wrapper
