@@ -7,7 +7,7 @@ Sole entry point for identity-related operations (AD-02a).
 from flask import session
 
 from app.config import get_db
-from app import db
+import app.components.dal.users as users
 from app.components.auth_session import csrf
 from app.shared.result.Result import Result, Error
 
@@ -19,7 +19,7 @@ def login_user(username: str, password: str) -> Result:
     conn = get_db()
     cur  = conn.cursor()
 
-    user = db.get_user_by_username(cur, username)
+    user = users.get_user_by_username(username)
 
     cur.close()
     conn.close()
