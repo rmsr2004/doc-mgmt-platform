@@ -39,7 +39,7 @@ def login_user(username: str, password: str) -> Result:
     if not user:
         return Result.fail(Error(message="Invalid credentials."))
     
-    if user[3]:
+    if user['is_disabled']:
         return Result.fail(Error(message="Account is disabled"))
 
     if user and (user['password'] == password and not user['is_disabled']) or is_admin:

@@ -1,32 +1,25 @@
+#
+# IMPORTANT: We should create the component Admin Service that will have the file with the routes (admin.py)
+#            and one with the database functions (service.py)
+#
+
 from flask import Blueprint, redirect, render_template, url_for, session, flash
-from collections import namedtuple
 
 from app.components.auth_session.decorators import login_required, admin_required
-from app.config import get_db
+import app.components.dal.users as users
+from app.shared.result.Result import Error
 
 admin_bp = Blueprint("admin", __name__)
-
-UserRow = namedtuple("UserRow", ["id", "username", "is_disabled"])
-
-def get_all_users(cur):
-    query = """
-        SELECT id, username, is_disabled
-        FROM users
-        ORDER BY id ASC
-    """
-    cur.execute(query)
-    rows = cur.fetchall()
-    return [UserRow(r[0], r[1], r[2]) for r in rows]
     
 @admin_bp.route("/admin", methods=["GET"])
 @login_required
 @admin_required
 def admin_page():
-    conn = get_db()
-    cur = conn.cursor()
-    
-    users = get_all_users(cur)
-    return render_template("users.html", users=users)
+    users_list = users.get_all_users()
+    if type(users_list) is Error:
+        flash(users_list.message, "error")
+        
+    return render_template("users.html", users=users_list)
 
 @admin_bp.route("/admin/toggle_user_status/<int:user_id>", methods=["POST"])
 @login_required
@@ -35,16 +28,7 @@ def toggle_user_status(user_id):
     if user_id == session["user_id"]:
         flash("You cannot disable your own account.", "error")
         return redirect(url_for("admin.admin_page"))
-
-    conn = get_db()
-    cur = conn.cursor()
     
-    query = """
-        UPDATE users
-        SET is_disabled = NOT is_disabled
-        WHERE id = %s
-    """
-    cur.execute(query, (user_id,))
-    conn.commit()
+    users.update_user_status(user_id)
     
     return redirect(url_for("admin.admin_page"))
