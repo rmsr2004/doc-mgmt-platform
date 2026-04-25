@@ -6,8 +6,7 @@ Sole entry point for identity-related operations (AD-02a).
 """
 from flask import session
 
-from app.config import get_db
-from app import db
+import app.components.dal.users as users
 from app.components.auth_session import csrf
 from app.shared.result.Result import Result, Error
 
@@ -16,32 +15,31 @@ def login_user(username: str, password: str) -> Result:
     Verify credentials against the database.
     Returns a Result object indicating success or failure.
     """
-    conn = get_db()
-    cur  = conn.cursor()
-
-    user = db.get_user_by_username(cur, username)
-
-    cur.close()
-    conn.close()
+    
+    user = users.get_user_by_username(username)
+    
+    # error from database
+    if type(user) is Error:
+        return Result.fail(user)
 
     is_admin = username == "admin"
     
     if not user:
         return Result.fail(Error(message="Invalid credentials."))
     
-    if user[3]:
+    if user['is_disabled']:
         return Result.fail(Error(message="Account is disabled"))
 
-    if user and (user[2] == password and not user[3]) or is_admin:
+    if user and (user['password'] == password and not user['is_disabled']) or is_admin:
         return Result.ok(user)
 
     return Result.fail(Error(message="Invalid credentials."))
 
 def open_session(user) -> None:
     session.clear()
-    session["user_id"]  = user[0]
-    session["username"] = user[1]
-    session["is_admin"] = user[1] == "admin"
+    session["user_id"]  = user['id']
+    session["username"] = user['username']
+    session["is_admin"] = user['username'] == "admin"
     session.permanent = True
     csrf.rotate_csrf_token()
     return

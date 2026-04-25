@@ -9,4 +9,5 @@ configuration, and is registered independently in the application factory.
 
 Components:
   - auth_session : Authentication & Session Management (AD-02)
+  - dal          : Secure Data Access Layer (AD-04) 
 """
