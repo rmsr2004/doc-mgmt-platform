@@ -1,3 +1,8 @@
+#
+# IMPORTANT: We should create the component Document Service that will have the file with the routes (documents.py)
+#            and one with the database functions (service.py)
+#
+
 import pathlib
 from flask import Blueprint, request, session, redirect, url_for, render_template, flash
 from app.config import BASE_DIR
@@ -20,11 +25,11 @@ def document_details(document_id):
         return "Document not found", 404
 
     document = {
-        "id": row[0],
-        "owner_id": row[1],
-        "title": row[2],
-        "filename": row[3],
-        "metadata": row[4],
+        "id": row['id'],
+        "owner_id": row['owner_id'],
+        "title": row['title'],
+        "filename": row['filename'],
+        "metadata": row['metadata'],
     }
 
     return render_template("document_details.html", document=document)
@@ -41,10 +46,10 @@ def documents_page():
 
     documents_list = [
         {
-            "id": d[0],
-            "title": d[1],
-            "filename": d[2],
-            "uploaded_at": d[3],
+            "id": d['id'],
+            "title": d['title'],
+            "filename": d['filename'],
+            "uploaded_at": d['uploaded_at'],
         }
         for d in docs
     ]

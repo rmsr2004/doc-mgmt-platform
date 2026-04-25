@@ -1,9 +1,53 @@
+import psycopg2
+import psycopg2.extras
+import traceback
+
+from app.config import get_db
+from app.shared.result.Result import Error
+
+# we should use this to log the queries
 def _log_query(sql, params):
     try:
         return sql % params
     except Exception:
         return sql
     
-def prepare_query(sql, params):
-    sql = _log_query(sql, params)
-    return sql
+def query_fetch_one(sql: str, params: tuple=()):
+    try:
+        with get_db() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(sql, params)
+                return cur.fetchone()
+    except psycopg2.OperationalError:
+        traceback.print_exc()
+        return Error(message="Internal Error")
+    except psycopg2.DatabaseError:
+        traceback.print_exc()
+        return Error(message="Invalid SQL")
+    
+def query_fetch_all(sql: str, params: tuple=()):
+    try:
+        with get_db() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(sql, params)
+                return cur.fetchall()
+    except psycopg2.OperationalError:
+        traceback.print_exc()
+        return Error(message="Internal Error")
+    except psycopg2.DatabaseError:
+        traceback.print_exc()
+        return Error(message="Invalid SQL")
+    
+def query_commit(sql: str, params: tuple=()):
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql, params)
+                conn.commit()
+                return cur.rowcount
+    except psycopg2.OperationalError:
+        traceback.print_exc()
+        return Error(message="Internal Error")
+    except psycopg2.DatabaseError:
+        traceback.print_exc()
+        return Error(message="Invalid SQL")
