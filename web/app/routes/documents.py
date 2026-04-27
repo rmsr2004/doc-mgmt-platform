@@ -4,7 +4,7 @@
 #
 
 import pathlib
-from flask import Blueprint, request, session, redirect, url_for, render_template, flash
+from flask import Blueprint, request, session, redirect, url_for, render_template, flash, send_from_directory
 from app.config import BASE_DIR
 from app.components.auth_session.decorators import login_required
 import app.components.dal.documents as documents
@@ -84,3 +84,17 @@ def upload_document():
     documents.upload_document(user_id, title, uploaded_file.filename, metadata)
 
     return redirect(url_for("documents.documents_page", uploaded=title))
+
+@bp.route("/documents/<int:document_id>/download", methods=["GET"])
+@login_required
+def download_document(document_id):
+    user_id = session.get("user_id")
+    doc = documents.get_document_details(document_id)
+    
+    if user_id != doc['owner_id']:
+        flash("You do not have permission to download this document.", "error")
+        return redirect(url_for("documents.documents_page"))
+     
+    upload_folder = pathlib.Path(bp.root_path).parent.parent / "uploads"
+    
+    return send_from_directory(upload_folder, doc['filename'], as_attachment=True)
