@@ -1,5 +1,3 @@
-from collections import namedtuple
-
 from . import utils
 
 def get_user_by_username(username):  

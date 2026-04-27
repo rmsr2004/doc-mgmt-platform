@@ -1,5 +1,3 @@
-from app.config import get_db
-
 from . import utils
 
 def get_documents_for_user(owner_id):

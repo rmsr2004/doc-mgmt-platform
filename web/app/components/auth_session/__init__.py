@@ -15,3 +15,5 @@ Modules:
   - auth_required.py     : login_required decorator (SR-13)
   - routes.py            : /login, /logout endpoints
 """
+
+from .routes import auth_bp
