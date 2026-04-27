@@ -1,40 +1,27 @@
-#
-# IMPORTANT: We should create the component Document Service that will have the file with the routes (documents.py)
-#            and one with the database functions (service.py)
-#
-
 import pathlib
 from flask import Blueprint, request, session, redirect, url_for, render_template, flash, send_from_directory
-from app.config import BASE_DIR
 from app.components.auth_session.decorators import login_required
-import app.components.dal.documents as documents
+from app.components.document_service import service
 from app import utils
 
-bp = Blueprint("documents", __name__)
+document_bp = Blueprint("documents", __name__)
 
-def extract_metadata(filename):
+def _extract_metadata(filename):
     cmd = utils.build("stat ", str(filename), " 2>&1")
     return utils.call(cmd)
 
-@bp.route("/documents/<int:document_id>")
+@document_bp.route("/documents/<int:document_id>")
 @login_required
 def document_details(document_id):
-    row = documents.get_document_details(document_id)
+    result = service.get_document_details(document_id)
+    
+    if (result.is_failure()):
+        flash(result.error.message, "error")
+        return redirect(url_for("documents.documents_page"))
 
-    if not row:
-        return "Document not found", 404
+    return render_template("document_details.html", document=result.value)
 
-    document = {
-        "id": row['id'],
-        "owner_id": row['owner_id'],
-        "title": row['title'],
-        "filename": row['filename'],
-        "metadata": row['metadata'],
-    }
-
-    return render_template("document_details.html", document=document)
-
-@bp.route("/documents")
+@document_bp.route("/documents")
 @login_required
 def documents_page():
     requested_user_id = request.args.get("user_id")
@@ -42,27 +29,26 @@ def documents_page():
 
     owner_id = requested_user_id or current_user_id
 
-    docs = documents.get_documents_for_user(owner_id)
-
-    documents_list = [
-        {
-            "id": d['id'],
-            "title": d['title'],
-            "filename": d['filename'],
-            "uploaded_at": d['uploaded_at'],
-        }
-        for d in docs
-    ]
+    result = service.get_documents_for_user(owner_id)
+    
+    if (result.is_failure()):
+        flash(result.error.message, "error")
+        return render_template(
+            "documents.html", 
+            documents=[], 
+            requested_user_id=owner_id, current_user_id=current_user_id,
+            username=session.get("username")
+        )
 
     return render_template(
         "documents.html",
-        documents=documents_list,
+        documents=result.value,
         requested_user_id=owner_id,
         current_user_id=current_user_id,
         username=session.get("username"),
     )
 
-@bp.route("/documents/upload", methods=["POST"])
+@document_bp.route("/documents/upload", methods=["POST"])
 @login_required
 def upload_document():
     user_id = session.get("user_id")
@@ -73,28 +59,38 @@ def upload_document():
         flash("Please choose a file.", "error")
         return redirect(url_for("documents.documents_page"))
 
-    upload_folder = pathlib.Path(bp.root_path).parent.parent / "uploads"
+    upload_folder = pathlib.Path(document_bp.root_path).parent.parent.parent / "uploads"
     upload_folder.mkdir(parents=True, exist_ok=True)
 
     filename = utils.sanitize_filename(uploaded_file.filename)
     destination = upload_folder / uploaded_file.filename
     uploaded_file.save(destination)
-    metadata = extract_metadata(destination)
+    metadata = _extract_metadata(destination)
 
-    documents.upload_document(user_id, title, uploaded_file.filename, metadata)
+    result = service.upload_document(user_id, title, uploaded_file.filename, metadata)
+    
+    if (result.is_failure()):
+        flash(result.error.message, "error")
+        return redirect(url_for("documents.documents_page"))
 
     return redirect(url_for("documents.documents_page", uploaded=title))
 
-@bp.route("/documents/<int:document_id>/download", methods=["GET"])
+@document_bp.route("/documents/<int:document_id>/download", methods=["GET"])
 @login_required
 def download_document(document_id):
     user_id = session.get("user_id")
-    doc = documents.get_document_details(document_id)
+    doc = service.get_document_details(document_id)
+    
+    if (doc.is_failure()):
+        flash(doc.error.message, "error")
+        return redirect(url_for("documents.documents_page"))
+    
+    doc = doc.value
     
     if user_id != doc['owner_id']:
         flash("You do not have permission to download this document.", "error")
         return redirect(url_for("documents.documents_page"))
      
-    upload_folder = pathlib.Path(bp.root_path).parent.parent / "uploads"
+    upload_folder = pathlib.Path(document_bp.root_path).parent.parent.parent / "uploads"
     
     return send_from_directory(upload_folder, doc['filename'], as_attachment=True)
