@@ -30,3 +30,5 @@ This component represents the Document Service shown in the system
 architecture. It is reached only through the protected application flow,
 after authentication and authorization checks have been applied.
 """
+
+from .routes import document_bp

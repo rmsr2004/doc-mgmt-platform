@@ -2,7 +2,7 @@ from flask import Blueprint, redirect, render_template, url_for, session, flash
 
 from app.components.auth_session.decorators import login_required, admin_required
 
-import app.components.admin_service.service as service
+from . import service
 
 admin_bp = Blueprint("admin", __name__)
     

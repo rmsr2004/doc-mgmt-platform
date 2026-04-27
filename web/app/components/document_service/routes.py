@@ -1,7 +1,8 @@
 import pathlib
 from flask import Blueprint, request, session, redirect, url_for, render_template, flash, send_from_directory
+
 from app.components.auth_session.decorators import login_required
-from app.components.document_service import service
+from . import service
 from app import utils
 
 document_bp = Blueprint("documents", __name__)

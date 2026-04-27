@@ -3,11 +3,9 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.config import SECRET_KEY, UPLOAD_FOLDER, BASE_DIR
 from app.routes import index, health
-from app.components.auth_session.session_config import configure_session
-from app.components.auth_session.routes import auth_bp
-from app.components.auth_session import ( csrf, csrf_filter )
-from app.components.document_service.routes import document_bp
-from app.components.admin_service.routes import admin_bp
+from app.components.auth_session import auth_bp, csrf, csrf_filter, session_config
+from app.components.document_service import document_bp
+from app.components.admin_service import admin_bp
 
 app = None
 
@@ -23,7 +21,7 @@ def create_app(test_config=None):
     app.config["UPLOAD_FOLDER"] = str(UPLOAD_FOLDER)
     
     # Configure session management for authentication (Authentication & Session)
-    configure_session(app)
+    session_config.configure_session(app)
     
     # Trust exactly one reverse proxy in front of Flask
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)

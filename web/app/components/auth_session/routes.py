@@ -6,7 +6,7 @@ auth_session component. Registered in create_app() via auth_bp.
 """
 from flask import Blueprint, request, flash, render_template, redirect, url_for, session
 
-from app.components.auth_session import session_lifecycle
+from . import session_lifecycle
 
 auth_bp = Blueprint("auth_session", __name__)
 
