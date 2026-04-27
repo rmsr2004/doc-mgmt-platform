@@ -26,6 +26,7 @@
                     <th>ID</th>
                     <th>Title</th>
                     <th>Filename</th>
+                    <th></th>
                     <th>Summary</th>
                     <th>Full</th>
                 </tr>
@@ -36,6 +37,11 @@
                     <td>{{ doc.id }}</td>
                     <td>{{ doc.title }}</td>
                     <td>{{ doc.filename }}</td>
+                    <td>
+                        <a href="{{ url_for('documents.download_document', document_id=doc.id) }}">
+                            <i data-lucide="file-down"></i>
+                        </a>
+                    </td>
                     <td>
                         <button class="details-btn" data-title="{{ doc.title }}">
                             Summary
