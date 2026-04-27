@@ -17,3 +17,9 @@ def upload_document(owner_id, title, filename, metadata):
         "INSERT INTO documents (owner_id, title, filename, metadata) VALUES (%s, %s, %s, %s)",
         (owner_id, title, filename, metadata, )
     )
+    
+def share_document(document_id, target_user_id):
+    return utils.query_commit(
+        "INSERT INTO document_shares (document_id, shared_with) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+        (document_id, target_user_id, )
+    )

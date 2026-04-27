@@ -2,7 +2,7 @@ from flask import Flask
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.config import SECRET_KEY, UPLOAD_FOLDER, BASE_DIR
-from app.routes import index, health
+from app.routes import index, health, users
 from app.components.auth_session import auth_bp, csrf, csrf_filter, session_config
 from app.components.document_service import document_bp
 from app.components.admin_service import admin_bp
@@ -38,6 +38,7 @@ def create_app(test_config=None):
     app.register_blueprint(document_bp)
     app.register_blueprint(index.bp)
     app.register_blueprint(health.bp)
+    app.register_blueprint(users.users_bp)
 
     return app
 
