@@ -30,24 +30,31 @@ def documents_page():
 
     owner_id = requested_user_id or current_user_id
 
-    result = service.get_documents_for_user(owner_id)
+    documents = service.get_documents_for_user(owner_id)
     
-    if (result.is_failure()):
-        flash(result.error.message, "error")
+    shared_documents = service.get_shared_documents_for_user(owner_id)
+    
+    if documents.is_failure() or shared_documents.is_failure():
+        error_msg = (
+            documents.error.message
+            if documents.is_failure()
+            else shared_documents.error.message
+        )
+        flash(error_msg, "error")
         return render_template(
-            "documents.html", 
-            documents=[], 
-            requested_user_id=owner_id, 
+            "documents.html",
+            documents=[],
+            shared_documents=[],
             current_user_id=current_user_id,
-            username=session.get("username")
         )
 
     return render_template(
         "documents.html",
-        documents=result.value,
+        documents=documents.value,
+        shared_documents= shared_documents.value,
         requested_user_id=owner_id,
         current_user_id=current_user_id,
-        username=session.get("username"),
+        username=session.get("username")
     )
 
 @document_bp.route("/documents/upload", methods=["POST"])
