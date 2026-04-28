@@ -37,7 +37,8 @@ def documents_page():
         return render_template(
             "documents.html", 
             documents=[], 
-            requested_user_id=owner_id, current_user_id=current_user_id,
+            requested_user_id=owner_id, 
+            current_user_id=current_user_id,
             username=session.get("username")
         )
 
@@ -95,3 +96,21 @@ def download_document(document_id):
     upload_folder = pathlib.Path(document_bp.root_path).parent.parent.parent / "uploads"
     
     return send_from_directory(upload_folder, doc['filename'], as_attachment=True)
+
+@document_bp.route("/documents/<int:document_id>/share", methods=["POST"])
+@login_required
+def share_document(document_id):
+    share_with_user_id = request.form.get("share_with_user_id")
+    
+    if not share_with_user_id:
+        flash("Please provide a user ID to share with.", "error")
+        return redirect(url_for("documents.documents_page"))
+
+    result = service.share_document(document_id, share_with_user_id)
+    
+    if (result.is_failure()):
+        flash(result.error.message, "error")
+    else:
+        flash("Document shared successfully!", "success")
+
+    return redirect(url_for("documents.documents_page"))

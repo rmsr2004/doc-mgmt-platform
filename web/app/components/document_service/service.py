@@ -48,3 +48,11 @@ def upload_document(owner_id, title, filename, metadata) -> Result:
         return Result.fail(result)
     
     return Result.ok(None)
+
+def share_document(document_id, target_user_id) -> Result:
+    row = documents.share_document(document_id, target_user_id)
+    
+    if type(row) is Error:
+        return Result.fail(row)
+    
+    return Result.ok(None)
