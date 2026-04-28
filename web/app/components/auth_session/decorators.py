@@ -7,26 +7,9 @@ Decorators-based enforcement of authentication on protected routes.
 import functools
 from time import time
 from flask import session, flash, redirect, url_for
-from app.config import get_db
 
-def get_user_by_id(user_id: int) -> dict | None:
-    conn = get_db()
-    cur  = conn.cursor()
-    
-    query = """
-        SELECT id, username, is_disabled
-        FROM users
-        WHERE id = %s
-    """
-    cur.execute(query, (user_id,))
-    row = cur.fetchone()
-    
-    cur.close()
-    conn.close()
-    
-    if row:
-        return {"id": row[0], "username": row[1], "active": not row[2]}
-    return None
+import app.components.dal.users as users
+from app.shared.result.Result import Error
 
 def login_required(fn):
     @functools.wraps(fn)
@@ -37,8 +20,14 @@ def login_required(fn):
             return redirect(url_for("auth_session.login"))
         
         # checks if the user still exists and is active
-        user = get_user_by_id(session["user_id"])
-        if user is None or not user["active"]:
+        user = users.get_user_by_id(session["user_id"])
+        
+        if type(user) is Error:
+            session.clear()
+            flash("An error occurred while fetching your user data. Please log in again.", "error")
+            return redirect(url_for("auth_session.login"))
+        
+        if user is None or user["is_disabled"]:
             session.clear()
             flash("Your account has been disabled.", "error")
             return redirect(url_for("auth_session.login"))
