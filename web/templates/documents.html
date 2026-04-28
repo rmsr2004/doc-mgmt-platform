@@ -105,6 +105,51 @@
         <p>No documents found.</p>
         {% endif %}
     </div>
+
+    <div class="card full-width">
+        <h2>Shared documents with me</h2>
+        <p class="muted">Showing documents shared with user id: {{ requested_user_id }}</p>
+        {% if shared_documents %}
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Title</th>
+                    <th>Filename</th>
+                    <th>Summary</th>
+                    <th>Full</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for doc in shared_documents %}
+                <tr>
+                    <td>{{ doc.id }}</td>
+                    <td>{{ doc.title }}</td>
+                    <td>{{ doc.filename }}</td>
+                    <td>
+                        <button class="shared-details-btn" data-title="{{ doc.title }}">
+                            Summary
+                        </button>
+                    </td>
+                    <td>
+                        <a href="{{ url_for('documents.document_details', document_id=doc.id) }}">
+                            Details
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div id="shared-doc-details" class="card" style="display:none;">
+            <h3>Document details</h3>
+            <p id="shared-doc-title"></p>
+        </div>
+        
+        {% else %}
+        <p>No documents found.</p>
+        {% endif %}
+    </div>
 </section>
 {% endblock %}
 
