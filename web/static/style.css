@@ -32,6 +32,10 @@ main {
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
+.card.full-width {
+    grid-column: 1 / -1;
+}
+
 .narrow {
     max-width: 420px;
     margin: 2rem auto;

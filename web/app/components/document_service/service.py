@@ -56,3 +56,24 @@ def share_document(document_id, target_user_id) -> Result:
         return Result.fail(row)
     
     return Result.ok(None)
+
+def get_shared_documents_for_user(user_id) -> Result:
+    rows = documents.get_shared_documents_for_user(user_id)
+    
+    # error from database
+    if type(rows) is Error:
+        return Result.fail(rows)
+
+    shared_docs = [
+        {
+            "id": d['id'],
+            "title": d['title'],
+            "filename": d['filename'],
+            "metadata": d['metadata'],
+            "uploaded_at": d['uploaded_at'],
+            "owner_username": d['owner_username']
+        }
+        for d in rows
+    ]
+
+    return Result.ok(shared_docs)
