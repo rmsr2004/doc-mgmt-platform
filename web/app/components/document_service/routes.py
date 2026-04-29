@@ -140,3 +140,23 @@ def shared_documents_page():
         current_user_id=current_user_id,
         username=session.get("username")
     )
+
+@document_bp.route("/shared/<int:document_id>/download", methods=["GET"])
+@login_required
+def download_shared_document(document_id):
+    user_id = session.get("user_id")
+    doc = service.get_document_details(document_id)
+    
+    if (doc.is_failure()):
+        flash(doc.error.message, "error")
+        return redirect(url_for("documents.shared_documents_page"))
+    
+    doc = doc.value
+    
+    if user_id != doc['owner_id']:
+        flash("You do not have permission to download this document.", "error")
+        return redirect(url_for("documents.shared_documents_page"))
+     
+    upload_folder = pathlib.Path(document_bp.root_path).parent.parent.parent / "uploads"
+    
+    return send_from_directory(upload_folder, doc['filename'], as_attachment=True)

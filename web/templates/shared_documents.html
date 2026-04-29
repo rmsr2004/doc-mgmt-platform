@@ -24,7 +24,7 @@
                     <td>{{ doc.title }}</td>
                     <td>{{ doc.filename }}</td>
                     <td>
-                        <a href="{{ url_for('documents.download_document', document_id=doc.id) }}">
+                        <a href="{{ url_for('documents.download_shared_document', document_id=doc.id) }}">
                             <i data-lucide="file-down"></i>
                         </a>
                     </td>
