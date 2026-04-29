@@ -5,7 +5,7 @@ def verify_document_access(document_id: int, user_id: int) -> Result:
     doc = documents.get_document_owner(document_id)
     
     if not doc:
-        return Result.fail(Error(message="Document not found"))
+        return Result.fail(Error(message="Document not found", http_code=404))
     
     if type(doc) == Error:
         return Result.fail(doc)
@@ -21,4 +21,4 @@ def verify_document_access(document_id: int, user_id: int) -> Result:
     if shared:
         return Result.ok(None)
     
-    return Result.fail(Error(message="Access denied"))
+    return Result.fail(Error(message="Access denied", http_code=403))
