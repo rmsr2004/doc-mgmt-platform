@@ -20,11 +20,11 @@ def query_fetch_one(sql: str, params: tuple=()):
                 return cur.fetchone()
     except psycopg2.OperationalError:
         traceback.print_exc()
-        return Error(message="Internal Error")
+        return Error(message="Internal Error", http_code=500)
     except psycopg2.DatabaseError:
         traceback.print_exc()
-        return Error(message="Invalid SQL")
-    
+        return Error(message="Invalid SQL", http_code=400)
+
 def query_fetch_all(sql: str, params: tuple=()):
     try:
         with get_db() as conn:
@@ -33,11 +33,11 @@ def query_fetch_all(sql: str, params: tuple=()):
                 return cur.fetchall()
     except psycopg2.OperationalError:
         traceback.print_exc()
-        return Error(message="Internal Error")
+        return Error(message="Internal Error", http_code=500)
     except psycopg2.DatabaseError:
         traceback.print_exc()
-        return Error(message="Invalid SQL")
-    
+        return Error(message="Invalid SQL", http_code=400)
+
 def query_commit(sql: str, params: tuple=()):
     try:
         with get_db() as conn:
@@ -47,7 +47,7 @@ def query_commit(sql: str, params: tuple=()):
                 return cur.rowcount
     except psycopg2.OperationalError:
         traceback.print_exc()
-        return Error(message="Internal Error")
+        return Error(message="Internal Error", http_code=500)
     except psycopg2.DatabaseError:
         traceback.print_exc()
-        return Error(message="Invalid SQL")
+        return Error(message="Invalid SQL", http_code=400)

@@ -6,6 +6,7 @@ T = TypeVar("T")
 @dataclass
 class Error:
     message: str
+    http_code: int = field(default=500)
 
 @dataclass(frozen=True)
 class Result(Generic[T]):
