@@ -10,8 +10,8 @@ def get_all_users() -> Result:
 
     return Result.ok(users_list)
 
-def update_user_status(user_id) -> Result:
-    result = users.update_user_status(user_id)
+def update_user_status(user_id, is_disabled) -> Result:
+    result = users.update_user_status(user_id, is_disabled)
     
     # error from database
     if type(result) is Error:

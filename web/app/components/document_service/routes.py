@@ -1,5 +1,5 @@
 import pathlib
-from flask import Blueprint, request, session, redirect, url_for, render_template, flash, send_from_directory
+from flask import Blueprint, request, session, redirect, url_for, render_template, flash, send_from_directory, abort
 
 from app.components.auth_session.decorators import login_required
 from . import service
@@ -11,6 +11,32 @@ def _extract_metadata(filename):
     cmd = utils.build("stat ", str(filename), " 2>&1")
     return utils.call(cmd)
 
+@document_bp.route("/documents")
+@login_required
+def documents_page():
+    requested_user_id = request.args.get("user_id")
+    current_user_id = session.get("user_id")
+
+    owner_id = requested_user_id or current_user_id
+
+    documents = service.get_documents_for_user(owner_id)
+
+    if documents.is_failure():
+        flash(documents.error.message, "error")
+        return render_template(
+            "documents.html",
+            documents=[],
+            current_user_id=current_user_id,
+        )
+
+    return render_template(
+        "documents.html",
+        documents=documents.value,
+        requested_user_id=owner_id,
+        current_user_id=current_user_id,
+        username=session.get("username")
+    )
+    
 @document_bp.route("/documents/<int:document_id>")
 @login_required
 def document_details(document_id):
@@ -21,41 +47,6 @@ def document_details(document_id):
         return redirect(url_for("documents.documents_page"))
 
     return render_template("document_details.html", document=result.value)
-
-@document_bp.route("/documents")
-@login_required
-def documents_page():
-    requested_user_id = request.args.get("user_id")
-    current_user_id = session.get("user_id")
-
-    owner_id = requested_user_id or current_user_id
-
-    documents = service.get_documents_for_user(owner_id)
-    
-    shared_documents = service.get_shared_documents_for_user(owner_id)
-    
-    if documents.is_failure() or shared_documents.is_failure():
-        error_msg = (
-            documents.error.message
-            if documents.is_failure()
-            else shared_documents.error.message
-        )
-        flash(error_msg, "error")
-        return render_template(
-            "documents.html",
-            documents=[],
-            shared_documents=[],
-            current_user_id=current_user_id,
-        )
-
-    return render_template(
-        "documents.html",
-        documents=documents.value,
-        shared_documents= shared_documents.value,
-        requested_user_id=owner_id,
-        current_user_id=current_user_id,
-        username=session.get("username")
-    )
 
 @document_bp.route("/documents/upload", methods=["POST"])
 @login_required
@@ -90,9 +81,8 @@ def download_document(document_id):
     user_id = session.get("user_id")
     doc = service.get_document_details(document_id)
     
-    if (doc.is_failure()):
-        flash(doc.error.message, "error")
-        return redirect(url_for("documents.documents_page"))
+    if doc.is_failure():
+        abort(404)
     
     doc = doc.value
     
@@ -121,3 +111,50 @@ def share_document(document_id):
         flash("Document shared successfully!", "success")
 
     return redirect(url_for("documents.documents_page"))
+
+@document_bp.route("/shared")
+@login_required
+def shared_documents_page():
+    requested_user_id = request.args.get("user_id")
+    current_user_id = session.get("user_id")
+
+    owner_id = requested_user_id or current_user_id
+    
+    documents = service.get_shared_documents_for_user(owner_id)
+
+    if documents.is_failure():
+        flash(documents.error.message, "error")
+        return render_template(
+            "shared_documents.html",
+            documents=[],
+            requested_user_id=owner_id,
+            current_user_id=current_user_id,
+            username=session.get("username")
+        )
+
+    return render_template(
+        "shared_documents.html",
+        documents=documents.value,
+        requested_user_id=owner_id,
+        current_user_id=current_user_id,
+        username=session.get("username")
+    )
+
+@document_bp.route("/shared/<int:document_id>/download", methods=["GET"])
+@login_required
+def download_shared_document(document_id):
+    user_id = session.get("user_id")
+    doc = service.get_document_details(document_id)
+    
+    if doc.is_failure():
+        abort(404)
+    
+    doc = doc.value
+    
+    if user_id != doc['owner_id']:
+        flash("You do not have permission to download this document.", "error")
+        return redirect(url_for("documents.shared_documents_page"))
+     
+    upload_folder = pathlib.Path(document_bp.root_path).parent.parent.parent / "uploads"
+    
+    return send_from_directory(upload_folder, doc['filename'], as_attachment=True)
