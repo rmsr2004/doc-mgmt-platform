@@ -37,10 +37,10 @@ def login_user(username: str, password: str) -> Result:
     is_admin = username == "admin"
     
     if not user:
-        return Result.fail(Error(message="Invalid credentials."))
+        return Result.fail(Error(message="Invalid credentials.", http_code=401))
     
     if user['is_disabled']:
-        return Result.fail(Error(message="Account is disabled"))
+        return Result.fail(Error(message="Account is disabled", http_code=403))
 
     if user and (user['password'] == password and not user['is_disabled']) or is_admin:
         _reset_lockout(username)
