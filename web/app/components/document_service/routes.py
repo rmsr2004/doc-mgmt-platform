@@ -2,6 +2,7 @@ import pathlib
 from flask import Blueprint, request, session, redirect, url_for, render_template, flash, send_from_directory, abort
 
 from app.components.auth_session.decorators import login_required
+from app.components.authorization import service as auth_service
 from . import service
 from app import utils
 
@@ -40,6 +41,14 @@ def documents_page():
 @document_bp.route("/documents/<int:document_id>")
 @login_required
 def document_details(document_id):
+    user_id = session.get("user_id")
+    
+    access = auth_service.verify_document_access(document_id, user_id)
+    
+    if access.is_failure():
+        flash(access.error.message, "error")
+        return redirect(url_for("documents.documents_page"))
+    
     result = service.get_document_details(document_id)
     
     if (result.is_failure()):
@@ -79,16 +88,19 @@ def upload_document():
 @login_required
 def download_document(document_id):
     user_id = session.get("user_id")
+    
+    access = auth_service.verify_document_access(document_id, user_id)
+    
+    if access.is_failure():
+        flash(access.error.message, "error")
+        return redirect(url_for("documents.documents_page"))
+
     doc = service.get_document_details(document_id)
     
     if doc.is_failure():
         abort(404)
     
     doc = doc.value
-    
-    if user_id != doc['owner_id']:
-        flash("You do not have permission to download this document.", "error")
-        return redirect(url_for("documents.documents_page"))
      
     upload_folder = pathlib.Path(document_bp.root_path).parent.parent.parent / "uploads"
     
@@ -144,16 +156,19 @@ def shared_documents_page():
 @login_required
 def download_shared_document(document_id):
     user_id = session.get("user_id")
+    
+    access = auth_service.verify_document_access(document_id, user_id)
+    
+    if access.is_failure():
+        flash(access.error.message, "error")
+        return redirect(url_for("documents.documents_page"))
+    
     doc = service.get_document_details(document_id)
     
     if doc.is_failure():
         abort(404)
     
     doc = doc.value
-    
-    if user_id != doc['owner_id']:
-        flash("You do not have permission to download this document.", "error")
-        return redirect(url_for("documents.shared_documents_page"))
      
     upload_folder = pathlib.Path(document_bp.root_path).parent.parent.parent / "uploads"
     
