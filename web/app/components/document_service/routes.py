@@ -15,26 +15,23 @@ def _extract_metadata(filename):
 @document_bp.route("/documents")
 @login_required
 def documents_page():
-    requested_user_id = request.args.get("user_id")
-    current_user_id = session.get("user_id")
+    user_id = session.get("user_id")
 
-    owner_id = requested_user_id or current_user_id
-
-    documents = service.get_documents_for_user(owner_id)
+    documents = service.get_documents_for_user(user_id)
 
     if documents.is_failure():
         flash(documents.error.message, "error")
         return render_template(
             "documents.html",
             documents=[],
-            current_user_id=current_user_id,
+            current_user_id=user_id,
         )
 
     return render_template(
         "documents.html",
         documents=documents.value,
-        requested_user_id=owner_id,
-        current_user_id=current_user_id,
+        requested_user_id=user_id,
+        current_user_id=user_id,
         username=session.get("username")
     )
     
@@ -127,28 +124,25 @@ def share_document(document_id):
 @document_bp.route("/shared")
 @login_required
 def shared_documents_page():
-    requested_user_id = request.args.get("user_id")
-    current_user_id = session.get("user_id")
-
-    owner_id = requested_user_id or current_user_id
+    user_id = session.get("user_id")
     
-    documents = service.get_shared_documents_for_user(owner_id)
+    documents = service.get_shared_documents_for_user(user_id)
 
     if documents.is_failure():
         flash(documents.error.message, "error")
         return render_template(
             "shared_documents.html",
             documents=[],
-            requested_user_id=owner_id,
-            current_user_id=current_user_id,
+            requested_user_id=user_id,
+            current_user_id=user_id,
             username=session.get("username")
         )
 
     return render_template(
         "shared_documents.html",
         documents=documents.value,
-        requested_user_id=owner_id,
-        current_user_id=current_user_id,
+        requested_user_id=user_id,
+        current_user_id=user_id,
         username=session.get("username")
     )
 
