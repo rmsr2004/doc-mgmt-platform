@@ -23,15 +23,15 @@ Security relevance:
 - Implements SR-03a: disabled accounts rejected at authentication middleware.
 - Implements SR-08: RBAC enforcement on all administrative endpoints.
 - Implements SR-08a: HTTP 403 returned for non-administrator requests.
-- Supports SR-06c: all administrative actions are audit-logged with
-  administrator identity, target user, action, and timestamp.
+- Supports SR-06: all administrative actions are audit-logged (AD-05).
 - Mitigates T-12: Privilege Abuse / Unauthorized Admin Access (MC-03).
 
 Architecture role:
 This component represents the Admin Backend shown in the system
-architecture. It is only reachable after passing through the
+architecture (AD-01). It is only reachable after passing through the
 Single Access Point (API Gateway) and the Authorization Gateway,
 which enforces the Administrator role check before any request
 reaches this component.
 """
+
 from .routes import admin_bp
