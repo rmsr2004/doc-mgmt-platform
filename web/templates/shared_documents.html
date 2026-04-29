@@ -2,31 +2,9 @@
 {% block content %}
 <p id="title-preview" class="muted"></p>
 <section class="grid">
-    <div class="card">
-        <h2>Upload document</h2>
-        <form method="post" action="{{ url_for('documents.upload_document') }}" enctype="multipart/form-data">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <label>Title</label>
-            <input type="text" name="title" required>
-
-            <label>File</label>
-            <input type="file" name="document" required>
-
-            <button type="submit">Upload</button>
-        </form>
-
-        <h2>Shared Documents</h2>
-        <button id="view-shared-btn">
-            <a href="{{ url_for('documents.shared_documents_page') }}">
-                List shared documents with me
-            </a>
-        </button>
-        
-    </div>
-
-    <div class="card">
+    <div class="card full-width">
         <h2>Documents</h2>
-        <p class="muted">Showing documents for user id: {{ requested_user_id }}</p>
+        <p class="muted">Showing documents shared with user id: {{ requested_user_id }}</p>
         {% if documents %}
         <table>
             <thead>
@@ -34,7 +12,6 @@
                     <th>ID</th>
                     <th>Title</th>
                     <th>Filename</th>
-                    <th></th>
                     <th></th>
                     <th>Summary</th>
                     <th>Full</th>
@@ -46,12 +23,6 @@
                     <td>{{ doc.id }}</td>
                     <td>{{ doc.title }}</td>
                     <td>{{ doc.filename }}</td>
-                    <td>
-                        <a href="#" class="share-btn" data-doc-id="{{ doc.id }}" data-doc-title="{{ doc.title }}"
-                            aria-label="Share {{ doc.title }}">
-                            <i data-lucide="share"></i>
-                        </a>
-                    </td>
                     <td>
                         <a href="{{ url_for('documents.download_document', document_id=doc.id) }}">
                             <i data-lucide="file-down"></i>
@@ -71,31 +42,6 @@
                 {% endfor %}
             </tbody>
         </table>
-
-        <dialog id="share-modal">
-            <form method="post" id="share-form" action="">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                <input type="hidden" name="document_id" id="modal-doc-id">
-
-                <h3>Share document</h3>
-                <p class="muted" id="modal-doc-title"></p>
-
-                <label>Share with</label>
-                <select name="share_with_user_id" id="modal-username" required>
-                    <option value="" disabled selected>Select a user...</option>
-                    {% for user in users %}
-                    {% if user.id != session.user_id %}
-                    <option value="{{ user.id }}">{{ user.username }}</option>
-                    {% endif %}
-                    {% endfor %}
-                </select>
-
-                <div style="display:flex; gap:0.5rem; margin-top:0.75rem;">
-                    <button type="submit">Share</button>
-                    <button type="button" id="close-modal">Cancel</button>
-                </div>
-            </form>
-        </dialog>
 
         <div id="doc-details" class="card" style="display:none;">
             <h3>Document details</h3>

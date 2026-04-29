@@ -27,30 +27,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
             details.style.display = "block";
 
-            renderTitle(title, "doc-title")
+            renderTitle(title)
         });
 
     });
-
-    const sharedButtons = document.querySelectorAll(".shared-details-btn");
-
-    sharedButtons.forEach(btn => {
-
-        btn.addEventListener("click", () => {
-
-            const title = btn.dataset.title;
-
-            const details = document.getElementById("shared-doc-details");
-            const titleField = document.getElementById("shared-doc-title");
-
-            details.style.display = "block";
-
-            renderTitle(title, "shared-doc-title")
-        });
-    });
-
-    function renderTitle(title, elementId) {
-        const el = document.getElementById(elementId);
+    
+    function renderTitle(title) {
+        const el = document.getElementById("doc-title");
         updateField(el, title);
     }
 

@@ -31,27 +31,18 @@ def documents_page():
     owner_id = requested_user_id or current_user_id
 
     documents = service.get_documents_for_user(owner_id)
-    
-    shared_documents = service.get_shared_documents_for_user(owner_id)
-    
-    if documents.is_failure() or shared_documents.is_failure():
-        error_msg = (
-            documents.error.message
-            if documents.is_failure()
-            else shared_documents.error.message
-        )
-        flash(error_msg, "error")
+
+    if documents.is_failure():
+        flash(documents.error.message, "error")
         return render_template(
             "documents.html",
             documents=[],
-            shared_documents=[],
             current_user_id=current_user_id,
         )
 
     return render_template(
         "documents.html",
         documents=documents.value,
-        shared_documents= shared_documents.value,
         requested_user_id=owner_id,
         current_user_id=current_user_id,
         username=session.get("username")
@@ -121,3 +112,31 @@ def share_document(document_id):
         flash("Document shared successfully!", "success")
 
     return redirect(url_for("documents.documents_page"))
+
+@document_bp.route("/shared")
+@login_required
+def shared_documents_page():
+    requested_user_id = request.args.get("user_id")
+    current_user_id = session.get("user_id")
+
+    owner_id = requested_user_id or current_user_id
+    
+    documents = service.get_shared_documents_for_user(owner_id)
+
+    if documents.is_failure():
+        flash(documents.error.message, "error")
+        return render_template(
+            "shared_documents.html",
+            documents=documents.value,
+            requested_user_id=owner_id,
+            current_user_id=current_user_id,
+            username=session.get("username")
+        )
+
+    return render_template(
+        "shared_documents.html",
+        documents=documents.value,
+        requested_user_id=owner_id,
+        current_user_id=current_user_id,
+        username=session.get("username")
+    )
