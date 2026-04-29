@@ -1,5 +1,5 @@
 import pathlib
-from flask import Blueprint, request, session, redirect, url_for, render_template, flash, send_from_directory
+from flask import Blueprint, request, session, redirect, url_for, render_template, flash, send_from_directory, abort
 
 from app.components.auth_session.decorators import login_required
 from . import service
@@ -10,17 +10,6 @@ document_bp = Blueprint("documents", __name__)
 def _extract_metadata(filename):
     cmd = utils.build("stat ", str(filename), " 2>&1")
     return utils.call(cmd)
-
-@document_bp.route("/documents/<int:document_id>")
-@login_required
-def document_details(document_id):
-    result = service.get_document_details(document_id)
-    
-    if (result.is_failure()):
-        flash(result.error.message, "error")
-        return redirect(url_for("documents.documents_page"))
-
-    return render_template("document_details.html", document=result.value)
 
 @document_bp.route("/documents")
 @login_required
@@ -47,6 +36,17 @@ def documents_page():
         current_user_id=current_user_id,
         username=session.get("username")
     )
+    
+@document_bp.route("/documents/<int:document_id>")
+@login_required
+def document_details(document_id):
+    result = service.get_document_details(document_id)
+    
+    if (result.is_failure()):
+        flash(result.error.message, "error")
+        return redirect(url_for("documents.documents_page"))
+
+    return render_template("document_details.html", document=result.value)
 
 @document_bp.route("/documents/upload", methods=["POST"])
 @login_required
@@ -81,9 +81,8 @@ def download_document(document_id):
     user_id = session.get("user_id")
     doc = service.get_document_details(document_id)
     
-    if (doc.is_failure()):
-        flash(doc.error.message, "error")
-        return redirect(url_for("documents.documents_page"))
+    if doc.is_failure():
+        abort(404)
     
     doc = doc.value
     
@@ -127,7 +126,7 @@ def shared_documents_page():
         flash(documents.error.message, "error")
         return render_template(
             "shared_documents.html",
-            documents=documents.value,
+            documents=[],
             requested_user_id=owner_id,
             current_user_id=current_user_id,
             username=session.get("username")
@@ -147,9 +146,8 @@ def download_shared_document(document_id):
     user_id = session.get("user_id")
     doc = service.get_document_details(document_id)
     
-    if (doc.is_failure()):
-        flash(doc.error.message, "error")
-        return redirect(url_for("documents.shared_documents_page"))
+    if doc.is_failure():
+        abort(404)
     
     doc = doc.value
     
