@@ -9,7 +9,7 @@ def get_document_details(document_id) -> Result:
         return Result.fail(row)
     
     if not row:
-        return Result.fail(Error(message="Document not found"))
+        return Result.fail(Error(message="Document not found", http_code=404))
     
     document = {
         "id": row['id'],

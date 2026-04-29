@@ -25,7 +25,7 @@ def documents_page():
             "documents.html",
             documents=[],
             current_user_id=user_id,
-        )
+        ), documents.error.http_code
 
     return render_template(
         "documents.html",
@@ -48,7 +48,7 @@ def document_details(document_id):
     
     result = service.get_document_details(document_id)
     
-    if (result.is_failure()):
+    if result.is_failure():
         flash(result.error.message, "error")
         return redirect(url_for("documents.documents_page"))
 
@@ -75,7 +75,7 @@ def upload_document():
 
     result = service.upload_document(user_id, title, uploaded_file.filename, metadata)
     
-    if (result.is_failure()):
+    if result.is_failure():
         flash(result.error.message, "error")
         return redirect(url_for("documents.documents_page"))
 
@@ -89,16 +89,22 @@ def download_document(document_id):
     access = auth_service.verify_document_access(document_id, user_id)
     
     if access.is_failure():
+        if access.error.http_code == 404:
+            abort(404)
+        
         flash(access.error.message, "error")
         return redirect(url_for("documents.documents_page"))
 
     doc = service.get_document_details(document_id)
     
     if doc.is_failure():
-        abort(404)
+        if doc.error.http_code == 404:
+            abort(404)
+        
+        flash(doc.error.message, "error")
+        return redirect(url_for("documents.documents_page"))
     
     doc = doc.value
-     
     upload_folder = pathlib.Path(document_bp.root_path).parent.parent.parent / "uploads"
     
     return send_from_directory(upload_folder, doc['filename'], as_attachment=True)
@@ -114,7 +120,7 @@ def share_document(document_id):
 
     result = service.share_document(document_id, share_with_user_id)
     
-    if (result.is_failure()):
+    if result.is_failure():
         flash(result.error.message, "error")
     else:
         flash("Document shared successfully!", "success")
@@ -136,7 +142,7 @@ def shared_documents_page():
             requested_user_id=user_id,
             current_user_id=user_id,
             username=session.get("username")
-        )
+        ), documents.error.http_code
 
     return render_template(
         "shared_documents.html",
@@ -154,13 +160,20 @@ def download_shared_document(document_id):
     access = auth_service.verify_document_access(document_id, user_id)
     
     if access.is_failure():
+        if access.error.http_code == 404:
+            abort(404)
+            
         flash(access.error.message, "error")
         return redirect(url_for("documents.documents_page"))
     
     doc = service.get_document_details(document_id)
     
     if doc.is_failure():
-        abort(404)
+        if doc.error.http_code == 404:
+            abort(404)
+        
+        flash(doc.error.message, "error")
+        return redirect(url_for("documents.documents_page"))
     
     doc = doc.value
      

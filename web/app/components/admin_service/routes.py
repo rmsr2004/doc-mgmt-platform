@@ -14,7 +14,7 @@ def admin_page():
     
     if result.is_failure():
         flash(result.error.message, "error")
-        return render_template("users.html", users=[])
+        return render_template("users.html", users=[]), result.error.http_code
         
     return render_template("users.html", users=result.value)
 
@@ -30,7 +30,7 @@ def enable_user_account(user_id):
     
     if result.is_failure():
         flash(result.error.message, "error")
-        return redirect(url_for("admin.admin_page"))
+        return redirect(url_for("admin.admin_page")), result.error.http_code
     
     flash("User status updated successfully.", "success")
     return redirect(url_for("admin.admin_page"))

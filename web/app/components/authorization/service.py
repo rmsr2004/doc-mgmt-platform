@@ -21,4 +21,4 @@ def verify_document_access(document_id: int, user_id: int) -> Result:
     if shared:
         return Result.ok(None)
     
-    return Result.fail(Error(message="Access denied", http_code=403))
+    return Result.fail(Error(message="You do not have permission to access this document", http_code=403))
