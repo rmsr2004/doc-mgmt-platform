@@ -6,7 +6,7 @@ from . import service
 
 admin_bp = Blueprint("admin", __name__)
     
-@admin_bp.route("/admin", methods=["GET"])
+@admin_bp.route("/admin/users", methods=["GET"])
 @login_required
 @admin_required
 def admin_page():
@@ -18,17 +18,36 @@ def admin_page():
         
     return render_template("users.html", users=result.value)
 
-@admin_bp.route("/admin/toggle_user_status/<int:user_id>", methods=["POST"])
+@admin_bp.route("/admin/users/<int:user_id>/enable", methods=["POST"])
 @login_required
 @admin_required
-def toggle_user_status(user_id):
+def enable_user_account(user_id):
+    if user_id == session["user_id"]:
+        flash("You cannot enable your own account.", "error")
+        return redirect(url_for("admin.admin_page"))
+    
+    result = service.update_user_status(user_id, False)
+    
+    if result.is_failure():
+        flash(result.error.message, "error")
+        return redirect(url_for("admin.admin_page"))
+    
+    flash("User status updated successfully.", "success")
+    return redirect(url_for("admin.admin_page"))
+
+@admin_bp.route("/admin/users/<int:user_id>/disable", methods=["POST"])
+@login_required
+@admin_required
+def disable_user_account(user_id):
     if user_id == session["user_id"]:
         flash("You cannot disable your own account.", "error")
         return redirect(url_for("admin.admin_page"))
     
-    result = service.update_user_status(user_id)
+    result = service.update_user_status(user_id, True)
     
     if result.is_failure():
         flash(result.error.message, "error")
+        return redirect(url_for("admin.admin_page"))
     
+    flash("User status updated successfully.", "success")
     return redirect(url_for("admin.admin_page"))

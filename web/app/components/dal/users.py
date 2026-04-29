@@ -11,8 +11,8 @@ def get_all_users():
         "SELECT id, username, is_disabled FROM users ORDER BY id ASC",
     )
 
-def update_user_status(user_id):
+def update_user_status(user_id, is_disabled):
     return utils.query_commit(
-        "UPDATE users SET is_disabled = NOT is_disabled WHERE id = %s",
-        (user_id, )
+        "UPDATE users SET is_disabled = %s WHERE id = %s",
+        (is_disabled, user_id, )
     )
