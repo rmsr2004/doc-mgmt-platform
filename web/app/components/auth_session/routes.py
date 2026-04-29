@@ -20,7 +20,7 @@ def login():
         
         if result.is_failure():
             flash(result.error.message, "error")
-            return render_template("login.html")
+            return render_template("login.html"), result.error.http_code
             
         user = result.value
         session_lifecycle.open_session(user)
