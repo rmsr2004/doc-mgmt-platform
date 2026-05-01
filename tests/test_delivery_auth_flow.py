@@ -1,12 +1,10 @@
 import os
 import requests
 
-BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8000")
-
+BASE_URL = os.getenv("APP_BASE_URL", "https://localhost:443")
 
 def _url(path: str) -> str:
     return BASE_URL.rstrip("/") + "/" + path.lstrip("/")
-
 
 def test_login_logout_flow():
     """
