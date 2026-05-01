@@ -4,6 +4,9 @@ run-name: "${{ github.workflow }}"
 on:
     push:
         branches: [ pipeline-test ]
+    
+    pull_request:
+        branches: [ pipeline-test ]
 
 permissions:
     contents: read
