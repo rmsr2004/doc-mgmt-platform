@@ -108,7 +108,7 @@ jobs:
 
             - name: Run delivery authentication flow test
               env:
-                  APP_BASE_URL: http://localhost:80
+                  APP_BASE_URL: https://localhost:443
               run: |
                   pytest -q tests/test_delivery_auth_flow.py
 
