@@ -3,6 +3,7 @@ from flask import Blueprint, request, session, redirect, url_for, render_templat
 
 from app.components.auth_session.decorators import login_required
 from app.components.authorization import service as auth_service
+from app.components.input_validation_filter import file_validator
 from . import service
 from app import utils
 
@@ -61,8 +62,9 @@ def upload_document():
     title = request.form.get("title", "Untitled")
     uploaded_file = request.files.get("document")
 
-    if not uploaded_file or uploaded_file.filename == "":
-        flash("Please choose a file.", "error")
+    validation_result = file_validator.validate_file(uploaded_file)
+    if validation_result.is_failure():
+        flash(validation_result.error.message, "error")
         return redirect(url_for("documents.documents_page"))
 
     upload_folder = pathlib.Path(document_bp.root_path).parent.parent.parent / "uploads"
