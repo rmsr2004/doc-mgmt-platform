@@ -1,14 +1,23 @@
 import os
 import requests
+import pytest
+import warnings
+from urllib3.exceptions import InsecureRequestWarning
 
-BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8000")
+warnings.filterwarnings("ignore", category=InsecureRequestWarning)
 
+BASE_URL = os.getenv("APP_BASE_URL", "https://localhost:443")
+
+@pytest.fixture
+def session():
+    s = requests.Session()
+    s.verify = False
+    return s
 
 def _url(path: str) -> str:
     return BASE_URL.rstrip("/") + "/" + path.lstrip("/")
 
-
-def test_login_logout_flow():
+def test_login_logout_flow(session):
     """
     Delivery-stage integration test.
 
@@ -17,9 +26,7 @@ def test_login_logout_flow():
     2. Access a protected page
     3. Logout
     4. Verify access is revoked
-    """
-
-    session = requests.Session()
+    """ 
 
     # ------------------------------------------------------------
     # Login
