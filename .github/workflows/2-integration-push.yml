@@ -2,12 +2,8 @@ name: 2 - Continuous Integration - Push
 run-name: "${{ github.workflow }}"
 
 on:
-    push:
-        branches: [ pipeline-test ]
+  workflow_call:
     
-    pull_request:
-        branches: [ pipeline-test ]
-
 permissions:
     contents: read
     packages: write
