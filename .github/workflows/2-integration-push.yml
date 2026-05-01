@@ -3,7 +3,7 @@ run-name: "${{ github.workflow }}"
 
 on:
     push:
-        branches: [ ci-cd-test ]
+        branches: [ staging ]
 
 permissions:
     contents: read
