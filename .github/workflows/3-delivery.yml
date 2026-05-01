@@ -1,4 +1,4 @@
-name: 2 - Continuous Delivery
+name: 3 - Continuous Delivery
 run-name: "${{ github.workflow }}"
 
 on:
@@ -9,7 +9,7 @@ on:
                 required: true
 
     workflow_run:
-        workflows: [ "1 - Continuous Integration" ]
+        workflows: [ "2 - Build and Push" ]
         types:
             - completed
 

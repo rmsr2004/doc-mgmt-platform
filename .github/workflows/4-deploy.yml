@@ -1,4 +1,4 @@
-name: 3 - Continuous Deployment
+name: 4 - Continuous Deployment
 run-name: "${{ github.workflow }}"
 
 on:
