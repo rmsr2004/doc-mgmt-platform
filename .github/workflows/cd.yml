@@ -1,15 +1,13 @@
-name: 3 - Continuous Delivery
-run-name: "${{ github.workflow }}"
+name: cd
 
 on:
-    workflow_dispatch:
+    workflow_call:
         inputs:
             image_tag:
-                description: "Immutable image tag to validate (e.g., commit SHA)"
+                description: "Immutable image tag to validate"
                 required: true
-
-    workflow_call:
-
+                type: string
+    
 permissions:
     contents: read
     packages: write

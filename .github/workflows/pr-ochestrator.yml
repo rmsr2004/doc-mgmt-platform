@@ -12,19 +12,12 @@ permissions:
 jobs:
   ci:
     name: 1 - Continuous Integration
-    uses: ./.github/workflows/1-integration.yml
+    uses: ./.github/workflows/ci.yml
     secrets: inherit
-
-  build_push:
-    name: 2 - Continuous Integration - Push
-    needs: ci
-    uses: ./.github/workflows/2-integration-push.yml
-    secrets: inherit
-
-  delivery:
+  cd:
     name: 3 - Continuous Delivery
-    needs: build_push
-    uses: ./.github/workflows/3-delivery.yml
+    needs: ci
+    uses: ./.github/workflows/cd.yml
     with:
       image_tag: ${{ github.sha }}
     secrets: inherit
