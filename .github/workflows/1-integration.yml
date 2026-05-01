@@ -2,8 +2,7 @@ name: 1 - Continuous Integration
 run-name: "${{ github.workflow }}"
 
 on:
-    pull_request:
-        branches: [ staging, dev, pipeline-test ]
+  workflow_call:
 
 permissions:
     contents: read

@@ -7,11 +7,8 @@ on:
             image_tag:
                 description: "Immutable image tag to validate (e.g., commit SHA)"
                 required: true
-
-    workflow_run:
-        workflows: [ "2 - Continuous Integration - Push" ]
-        types:
-            - completed
+    
+    workflow_call:
 
 permissions:
     contents: read
