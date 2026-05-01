@@ -9,7 +9,7 @@ on:
                 required: true
 
     workflow_run:
-        workflows: [ "2 - Build and Push" ]
+        workflows: [ "2 - Continuous Integration - Push" ]
         types:
             - completed
 
