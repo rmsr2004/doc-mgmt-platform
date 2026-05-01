@@ -3,9 +3,9 @@ run-name: "${{ github.workflow }}"
 
 on:
     push:
-        branches: [ dev ]
+        branches: [ dev, ci-cd-test ]
     pull_request:
-        branches: [ dev ]
+        branches: [ dev, ci-cd-test ]
 
 permissions:
     contents: read
@@ -76,7 +76,7 @@ jobs:
     build-and-push:
         runs-on: ubuntu-latest
         needs: test
-        if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/ci-cd-test'
 
         steps:
             - name: Checkout repository
