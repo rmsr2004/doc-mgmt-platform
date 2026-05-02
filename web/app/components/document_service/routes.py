@@ -2,8 +2,10 @@ import pathlib
 from flask import Blueprint, request, session, redirect, url_for, render_template, flash, send_from_directory, abort
 
 from app.components.auth_session.decorators import login_required
-from app.components.authorization import service as auth_service
+from app.components.authorization import service as authz_service
 from app.components.input_validation_filter import file_validator
+from app.components.sanitizing_storage_adapter import adapter as storage_sanitizer
+from app.config import UPLOAD_FOLDER
 from . import service
 from app import utils
 
@@ -41,7 +43,7 @@ def documents_page():
 def document_details(document_id):
     user_id = session.get("user_id")
     
-    access = auth_service.verify_document_access(document_id, user_id)
+    access = authz_service.verify_document_access(document_id, user_id)
     
     if access.is_failure():
         flash(access.error.message, "error")
@@ -59,25 +61,32 @@ def document_details(document_id):
 @login_required
 def upload_document():
     user_id = session.get("user_id")
-    title = request.form.get("title", "Untitled")
+    title = request.form.get("title", "Untitled").strip()
     uploaded_file = request.files.get("document")
+
+    if not title or len(title) > 255:
+        flash("Invalid title.", "error")
+        return redirect(url_for("documents.documents_page"))
 
     validation_result = file_validator.validate_file(uploaded_file)
     if validation_result.is_failure():
         flash(validation_result.error.message, "error")
         return redirect(url_for("documents.documents_page"))
 
-    upload_folder = pathlib.Path(document_bp.root_path).parent.parent.parent / "uploads"
-    upload_folder.mkdir(parents=True, exist_ok=True)
+    sanitize_result = storage_sanitizer.sanitize_file(uploaded_file.filename)
+    if sanitize_result.is_failure():
+        flash(sanitize_result.error.message, "error")
+        return redirect(url_for("documents.documents_page"))
 
-    filename = utils.sanitize_filename(uploaded_file.filename)
-    destination = upload_folder / uploaded_file.filename
-    uploaded_file.save(destination)
-    metadata = _extract_metadata(destination)
+    uuid_filename, original_filename, safe_path = sanitize_result.value  # ← 3 valores
+    safe_path.parent.mkdir(parents=True, exist_ok=True)
+    uploaded_file.save(safe_path)
 
-    result = service.upload_document(user_id, title, uploaded_file.filename, metadata)
-    
+    metadata = _extract_metadata(safe_path)
+
+    result = service.upload_document(user_id, title, original_filename, uuid_filename, metadata)
     if result.is_failure():
+        safe_path.unlink(missing_ok=True)
         flash(result.error.message, "error")
         return redirect(url_for("documents.documents_page"))
 
@@ -88,7 +97,7 @@ def upload_document():
 def download_document(document_id):
     user_id = session.get("user_id")
     
-    access = auth_service.verify_document_access(document_id, user_id)
+    access = authz_service.verify_document_access(document_id, user_id)
     
     if access.is_failure():
         if access.error.http_code == 404:
@@ -107,9 +116,13 @@ def download_document(document_id):
         return redirect(url_for("documents.documents_page"))
     
     doc = doc.value
-    upload_folder = pathlib.Path(document_bp.root_path).parent.parent.parent / "uploads"
     
-    return send_from_directory(upload_folder, doc['filename'], as_attachment=True)
+    return send_from_directory(
+        UPLOAD_FOLDER,
+        doc['uuid_filename'],
+        as_attachment=True,
+        download_name=doc['filename']
+    )
 
 @document_bp.route("/documents/<int:document_id>/share", methods=["POST"])
 @login_required
@@ -159,7 +172,7 @@ def shared_documents_page():
 def download_shared_document(document_id):
     user_id = session.get("user_id")
     
-    access = auth_service.verify_document_access(document_id, user_id)
+    access = authz_service.verify_document_access(document_id, user_id)
     
     if access.is_failure():
         if access.error.http_code == 404:
@@ -178,7 +191,10 @@ def download_shared_document(document_id):
         return redirect(url_for("documents.documents_page"))
     
     doc = doc.value
-     
-    upload_folder = pathlib.Path(document_bp.root_path).parent.parent.parent / "uploads"
     
-    return send_from_directory(upload_folder, doc['filename'], as_attachment=True)
+    return send_from_directory(
+        UPLOAD_FOLDER, 
+        doc['uuid_filename'], 
+        as_attachment=True,
+        download_name=doc['filename']    
+    )

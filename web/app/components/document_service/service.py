@@ -16,6 +16,7 @@ def get_document_details(document_id) -> Result:
         "owner_id": row['owner_id'],
         "title": row['title'],
         "filename": row['filename'],
+        "uuid_filename": row['uuid_filename'],
         "metadata": row['metadata'],
     }
     
@@ -40,8 +41,8 @@ def get_documents_for_user(owner_id) -> Result:
     
     return Result.ok(documents_list)
 
-def upload_document(owner_id, title, filename, metadata) -> Result:
-    result = documents.upload_document(owner_id, title, filename, metadata)
+def upload_document(owner_id, title, filename, uuid_filename, metadata) -> Result:
+    result = documents.upload_document(owner_id, title, filename, uuid_filename, metadata)
     
     # error from database
     if type(result) is Error:

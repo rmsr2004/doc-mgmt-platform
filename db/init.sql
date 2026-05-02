@@ -10,6 +10,7 @@ CREATE TABLE documents (
     owner_id INTEGER REFERENCES users(id),
     title TEXT NOT NULL,
     filename TEXT NOT NULL,
+    uuid_filename TEXT NOT NULL,
     metadata TEXT,
     uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
