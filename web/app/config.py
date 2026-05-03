@@ -15,6 +15,7 @@ DB_NAME     = os.getenv("DB_NAME", "docdb")
 
 SECRET_KEY     = os.getenv("SECRET_KEY", "dev-secret")
 UPLOAD_FOLDER  = BASE_DIR / "uploads"
+UPLOAD_RATE_LIMIT  = "5 per minute"
 
 def get_db():
     return psycopg2.connect(

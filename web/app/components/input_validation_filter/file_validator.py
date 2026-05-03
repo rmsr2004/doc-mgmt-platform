@@ -1,5 +1,6 @@
 import magic
 from werkzeug.datastructures import FileStorage
+
 from app.shared.result.Result import Result, Error
 
 ALLOWED_EXTENSIONS = {
@@ -20,6 +21,10 @@ ALLOWED_MIME_TYPES = {
 def validate_file(file: FileStorage):
     if not file or not file.filename:
         return Result.fail(Error("No file provided", 400))
+        
+    is_file_empty = _validate_empty_file(file)
+    if is_file_empty:
+        return Result.fail(Error("File must not be empty", 400))
     
     is_extension_valid = _validate_file_extension(file)
     if not is_extension_valid:
@@ -31,6 +36,22 @@ def validate_file(file: FileStorage):
     
     return Result.ok(value=file)
 
+def _validate_empty_file(file: FileStorage) -> bool:
+    f = file.stream
+    f.seek(0, 2)
+    size = f.tell()
+    f.seek(0)
+    
+    if size == 0:
+        return True
+
+    return False
+
+def _validate_file_extension(file: FileStorage) -> bool:
+    filename = file.filename
+    extension = _extract_extension(filename)    
+    return extension in ALLOWED_EXTENSIONS
+
 def _validate_mime_type(file: FileStorage) -> bool:
     header = file.stream.read(1024)  # Read the first 1024 bytes to determine MIME type
     file.stream.seek(0)  # Reset the stream position after reading
@@ -38,11 +59,6 @@ def _validate_mime_type(file: FileStorage) -> bool:
     mime_type = magic.from_buffer(header, mime=True)
     
     return mime_type in ALLOWED_MIME_TYPES
-
-def _validate_file_extension(file: FileStorage) -> bool:
-    filename = file.filename
-    extension = _extract_extension(filename)    
-    return extension in ALLOWED_EXTENSIONS
 
 def _extract_extension(filename: str) -> str:
     if '.' not in filename:

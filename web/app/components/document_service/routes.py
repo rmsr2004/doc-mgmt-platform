@@ -1,11 +1,11 @@
-import pathlib
 from flask import Blueprint, request, session, redirect, url_for, render_template, flash, send_from_directory, abort
 
 from app.components.auth_session.decorators import login_required
 from app.components.authorization import service as authz_service
 from app.components.input_validation_filter import file_validator
 from app.components.sanitizing_storage_adapter import adapter as storage_sanitizer
-from app.config import UPLOAD_FOLDER
+from app.components.upload_guard import limiter
+from app.config import UPLOAD_FOLDER, UPLOAD_RATE_LIMIT
 from . import service
 from app import utils
 
@@ -57,9 +57,15 @@ def document_details(document_id):
 
     return render_template("document_details.html", document=result.value)
 
-@document_bp.route("/documents/upload", methods=["POST"])
+@document_bp.route("/documents/upload", methods=["POST", "GET"])
 @login_required
+@limiter.limit(UPLOAD_RATE_LIMIT)
 def upload_document():
+    error = request.args.get("error")
+    if error:
+        flash("File size exceeds the allowed limit.", "error")
+        return redirect(url_for("documents.documents_page"))
+    
     user_id = session.get("user_id")
     title = request.form.get("title", "Untitled").strip()
     uploaded_file = request.files.get("document")
@@ -78,7 +84,7 @@ def upload_document():
         flash(sanitize_result.error.message, "error")
         return redirect(url_for("documents.documents_page"))
 
-    uuid_filename, original_filename, safe_path = sanitize_result.value  # ← 3 valores
+    uuid_filename, original_filename, safe_path = sanitize_result.value
     safe_path.parent.mkdir(parents=True, exist_ok=True)
     uploaded_file.save(safe_path)
 
