@@ -57,9 +57,14 @@ def document_details(document_id):
 
     return render_template("document_details.html", document=result.value)
 
-@document_bp.route("/documents/upload", methods=["POST"])
+@document_bp.route("/documents/upload", methods=["POST", "GET"])
 @login_required
 def upload_document():
+    error = request.args.get("error")
+    if error:
+        flash("File size exceeds the allowed limit.", "error")
+        return redirect(url_for("documents.documents_page"))
+    
     user_id = session.get("user_id")
     title = request.form.get("title", "Untitled").strip()
     uploaded_file = request.files.get("document")
@@ -78,7 +83,7 @@ def upload_document():
         flash(sanitize_result.error.message, "error")
         return redirect(url_for("documents.documents_page"))
 
-    uuid_filename, original_filename, safe_path = sanitize_result.value  # ← 3 valores
+    uuid_filename, original_filename, safe_path = sanitize_result.value
     safe_path.parent.mkdir(parents=True, exist_ok=True)
     uploaded_file.save(safe_path)
 

@@ -1,6 +1,8 @@
 import magic
 from werkzeug.datastructures import FileStorage
+
 from app.shared.result.Result import Result, Error
+from app.config import MAX_CONTENT_LENGTH
 
 ALLOWED_EXTENSIONS = {
     'txt', 'pdf', 'doc', 'docx', 'ppt', 'pptx', 'png', 'jpg', 'jpeg'
@@ -20,7 +22,7 @@ ALLOWED_MIME_TYPES = {
 def validate_file(file: FileStorage):
     if not file or not file.filename:
         return Result.fail(Error("No file provided", 400))
-    
+        
     is_extension_valid = _validate_file_extension(file)
     if not is_extension_valid:
         return Result.fail(Error("Invalid file extension", 400))
@@ -31,6 +33,11 @@ def validate_file(file: FileStorage):
     
     return Result.ok(value=file)
 
+def _validate_file_extension(file: FileStorage) -> bool:
+    filename = file.filename
+    extension = _extract_extension(filename)    
+    return extension in ALLOWED_EXTENSIONS
+
 def _validate_mime_type(file: FileStorage) -> bool:
     header = file.stream.read(1024)  # Read the first 1024 bytes to determine MIME type
     file.stream.seek(0)  # Reset the stream position after reading
@@ -39,10 +46,6 @@ def _validate_mime_type(file: FileStorage) -> bool:
     
     return mime_type in ALLOWED_MIME_TYPES
 
-def _validate_file_extension(file: FileStorage) -> bool:
-    filename = file.filename
-    extension = _extract_extension(filename)    
-    return extension in ALLOWED_EXTENSIONS
 
 def _extract_extension(filename: str) -> str:
     if '.' not in filename:
