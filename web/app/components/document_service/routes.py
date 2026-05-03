@@ -1,11 +1,11 @@
-import pathlib
 from flask import Blueprint, request, session, redirect, url_for, render_template, flash, send_from_directory, abort
 
 from app.components.auth_session.decorators import login_required
 from app.components.authorization import service as authz_service
 from app.components.input_validation_filter import file_validator
 from app.components.sanitizing_storage_adapter import adapter as storage_sanitizer
-from app.config import UPLOAD_FOLDER
+from app.components.upload_guard import limiter
+from app.config import UPLOAD_FOLDER, UPLOAD_RATE_LIMIT
 from . import service
 from app import utils
 
@@ -59,6 +59,7 @@ def document_details(document_id):
 
 @document_bp.route("/documents/upload", methods=["POST", "GET"])
 @login_required
+@limiter.limit(UPLOAD_RATE_LIMIT)
 def upload_document():
     error = request.args.get("error")
     if error:
