@@ -4,7 +4,7 @@ routes.py
 Flask Blueprint exposing /login and /logout as part of the
 auth_session component. Registered in create_app() via auth_bp.
 """
-from flask import Blueprint, request, flash, render_template, redirect, url_for, session
+from flask import Blueprint, request, flash, render_template, redirect, url_for, session, current_app
 
 from . import session_lifecycle
 
@@ -12,6 +12,12 @@ auth_bp = Blueprint("auth_session", __name__)
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
+    error = request.args.get("error")
+    if error:
+        current_app.logger.info("Error Too Many Requests")
+        flash("Too Many Requests", "error")
+        return render_template("login.html")
+    
     if request.method == "POST":
         username = request.form.get("username", "")
         password = request.form.get("password", "")
