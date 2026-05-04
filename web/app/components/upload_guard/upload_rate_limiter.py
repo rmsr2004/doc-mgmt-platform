@@ -8,7 +8,6 @@ def upload_rate_limit_key() -> str:
         return f"user:{user_id}"
     return f"ip:{get_remote_address()}"
 
-
 limiter = Limiter(
     key_func=upload_rate_limit_key,
     default_limits=[],
