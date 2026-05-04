@@ -1,3 +1,4 @@
+from datetime import timedelta
 import os
 import pathlib
 import psycopg2
@@ -16,6 +17,9 @@ DB_NAME     = os.getenv("DB_NAME", "docdb")
 SECRET_KEY     = os.getenv("SECRET_KEY", "dev-secret")
 UPLOAD_FOLDER  = BASE_DIR / "uploads"
 UPLOAD_RATE_LIMIT  = "5 per minute"
+
+LOCKOUT_THRESHOLD = 5
+LOCKOUT_DURATION  = timedelta(minutes=12)
 
 def get_db():
     return psycopg2.connect(

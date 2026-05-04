@@ -6,11 +6,12 @@ auth_session component. Registered in create_app() via auth_bp.
 """
 from flask import Blueprint, request, flash, render_template, redirect, url_for, session, current_app
 
-from . import session_lifecycle
+from . import session_lifecycle, auth_rate_limiter
 
 auth_bp = Blueprint("auth_session", __name__)
 
 @auth_bp.route("/login", methods=["GET", "POST"])
+@auth_rate_limiter.limiter.limit("10 per minute")
 def login():
     error = request.args.get("error")
     if error:
