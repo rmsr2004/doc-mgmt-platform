@@ -75,7 +75,8 @@ def _get_remaining_minutes(user: dict) -> int:
     if locked_until.tzinfo is None:
         locked_until = locked_until.replace(tzinfo=timezone.utc)
     
-    return int((locked_until - datetime.now(timezone.utc)).total_seconds() // 60) + 1
+    remaining_seconds = (locked_until - datetime.now(timezone.utc)).total_seconds()
+    return int(remaining_seconds / 60)
 
 def _register_failed_attempt(username: str) -> None:
     users.increment_failed_attempts(username)
