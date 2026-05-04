@@ -27,6 +27,9 @@ UPLOAD_RATE_LIMIT  = "20 per minute"
 LOCKOUT_THRESHOLD = 5
 LOCKOUT_DURATION  = timedelta(minutes=12)
 
+LOCKOUT_THRESHOLD = 5
+LOCKOUT_DURATION  = timedelta(minutes=12)
+
 def get_db():
     return psycopg2.connect(
         host=DB_HOST,
