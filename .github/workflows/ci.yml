@@ -90,6 +90,28 @@ jobs:
               run: |
                   pip-audit -r web/requirements.txt
     
+    sast-bandit:
+        name: SAST with Bandit
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v6
+
+            - name: Set up Python
+              uses: actions/setup-python@v6
+              with:
+                  python-version: "3.10"
+
+            - name: Install Bandit
+              run: |
+                  python -m pip install --upgrade pip
+                  pip install bandit
+
+            - name: Run Bandit
+              run: |
+                  bandit -r . -x tests
+
     build-and-push:
         runs-on: ubuntu-latest
 
