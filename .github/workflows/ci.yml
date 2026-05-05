@@ -5,8 +5,10 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
+  checks: write
+  security-events: write
   packages: write
-  pull-requests: read
 
 env:
     REGISTRY: ghcr.io
