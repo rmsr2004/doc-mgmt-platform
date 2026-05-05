@@ -6,7 +6,6 @@ on:
 permissions:
     contents: read
     packages: write
-    #pull-requests: read
 
 env:
     REGISTRY: ghcr.io
@@ -112,19 +111,6 @@ jobs:
             - name: Run Bandit
               run: |
                   bandit -r . -x ./tests || true
-
-    #gitleaks:
-        #name: Secret Scanning (Gitleaks)
-        #runs-on: ubuntu-latest
-
-        #steps:
-            #- name: Checkout repository
-              #uses: actions/checkout@v6
-
-            #- name: Run Gitleaks
-              #uses: gitleaks/gitleaks-action@v2
-              #env:
-                  #GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     build-and-push:
         runs-on: ubuntu-latest
