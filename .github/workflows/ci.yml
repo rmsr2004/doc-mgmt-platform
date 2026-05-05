@@ -110,7 +110,7 @@ jobs:
 
             - name: Run Bandit
               run: |
-                  bandit -r . -x tests
+                  bandit -r . -x ./tests
 
     build-and-push:
         runs-on: ubuntu-latest
