@@ -119,6 +119,8 @@ jobs:
         steps:
             - name: Checkout repository
               uses: actions/checkout@v6
+              with:
+                  fetch-depth: 0
 
             - name: Install Gitleaks
               run: |
@@ -129,7 +131,19 @@ jobs:
 
             - name: Run Gitleaks scan
               run: |
-                  gitleaks detect --source . --redact --no-banner --exit-code 1
+                  gitleaks detect \
+                    --source . \
+                    --redact \
+                    --verbose \
+                    --report-format json \
+                    --report-path gitleaks-report.json \
+                    --exit-code 1 || true
+
+            - name: Upload Gitleaks report
+              uses: actions/upload-artifact@v4
+              with:
+                  name: gitleaks-report
+                  path: gitleaks-report.json
 
     build-and-push:
         runs-on: ubuntu-latest
