@@ -67,6 +67,28 @@ jobs:
               if: always()
               run: |
                   docker compose down -v --remove-orphans
+
+    sca:
+        name: Software Composition Analysis
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v6
+
+            - name: Set up Python
+              uses: actions/setup-python@v6
+              with:
+                  python-version: "3.10"
+
+            - name: Install dependencies and pip-audit
+              run: |
+                  pip install -r requirements.txt
+                  pip install pip-audit
+
+            - name: Run pip-audit
+              run: |
+                  pip-audit
     
     build-and-push:
         runs-on: ubuntu-latest
