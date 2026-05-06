@@ -20,10 +20,10 @@ Required columns checked per category:
 """
 
 import os
+import re
 import pytest
 import psycopg2
 import psycopg2.extras
-import base64
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -58,7 +58,7 @@ def _db():
     return psycopg2.connect(
         host=os.getenv("DB_HOST", "localhost"),
         port=int(os.getenv("DB_PORT", 5432)),
-        dbname=os.getenv("DB_NAME", "docmgmt"),
+        dbname=os.getenv("DB_NAME", "docdb"),
         user=os.getenv("DB_USER", "postgres"),
         password=os.getenv("DB_PASSWORD", "postgres"),
     )
@@ -119,10 +119,18 @@ def _fetch_latest(event_category: str, action: str, actor_username: str | None =
     return row
 
 
-def _login(session: "requests.Session", username: str, password: str):
+def _get_csrf_token(session, url: str) -> str:
+    """Fetch *url* and return the CSRF token from the <meta name="csrf-token"> tag."""
+    r = session.get(url, verify=False)
+    match = re.search(r'<meta name="csrf-token" content="([^"]+)"', r.text)
+    if not match:
+        raise RuntimeError(f"CSRF token not found in {url}")
+    return match.group(1)
+
+
+def _login(session, username: str, password: str):
     """POST /login and follow the redirect."""
-    r = session.get(f"{BASE_URL}/login", verify=False)
-    # extract CSRF token from cookie / form if needed — kept simple here
+    session.get(f"{BASE_URL}/login", verify=False)
     return session.post(
         f"{BASE_URL}/login",
         data={"username": username, "password": password},
@@ -265,9 +273,10 @@ class TestDocumentAuditLog:
                 bob = cur.fetchone()
         assert bob, "bob user not found"
 
+        csrf = _get_csrf_token(requests_session, f"{BASE_URL}/documents/{doc_id}")
         requests_session.post(
             f"{BASE_URL}/documents/{doc_id}/share",
-            data={"share_with_user_id": bob["id"]},
+            data={"share_with_user_id": bob["id"], "csrf_token": csrf},
             verify=False,
             allow_redirects=True,
         )
@@ -301,8 +310,10 @@ class TestAdminAuditLog:
         alice_id = self._get_alice_id()
         assert alice_id, "alice not found"
 
+        csrf = _get_csrf_token(requests_session, f"{BASE_URL}/admin/users")
         requests_session.post(
             f"{BASE_URL}/admin/users/{alice_id}/disable",
+            data={"csrf_token": csrf},
             verify=False,
             allow_redirects=True,
         )
@@ -318,8 +329,10 @@ class TestAdminAuditLog:
         assert row["timestamp"] is not None
 
         # cleanup — re-enable alice
+        csrf2 = _get_csrf_token(requests_session, f"{BASE_URL}/admin/users")
         requests_session.post(
             f"{BASE_URL}/admin/users/{alice_id}/enable",
+            data={"csrf_token": csrf2},
             verify=False,
             allow_redirects=True,
         )
@@ -330,14 +343,18 @@ class TestAdminAuditLog:
         alice_id = self._get_alice_id()
         assert alice_id, "alice not found"
 
+        csrf = _get_csrf_token(requests_session, f"{BASE_URL}/admin/users")
         # disable first so enable makes sense
         requests_session.post(
             f"{BASE_URL}/admin/users/{alice_id}/disable",
+            data={"csrf_token": csrf},
             verify=False,
             allow_redirects=True,
         )
+        csrf2 = _get_csrf_token(requests_session, f"{BASE_URL}/admin/users")
         requests_session.post(
             f"{BASE_URL}/admin/users/{alice_id}/enable",
+            data={"csrf_token": csrf2},
             verify=False,
             allow_redirects=True,
         )
@@ -358,8 +375,10 @@ class TestAdminAuditLog:
         alice_id = self._get_alice_id()
         assert alice_id, "alice not found"
 
+        csrf = _get_csrf_token(requests_session, f"{BASE_URL}/admin/users")
         requests_session.post(
             f"{BASE_URL}/admin/users/{alice_id}/disable",
+            data={"csrf_token": csrf},
             verify=False,
             allow_redirects=True,
         )
@@ -369,8 +388,10 @@ class TestAdminAuditLog:
         assert row["actor_username"] == "admin"
 
         # cleanup
+        csrf2 = _get_csrf_token(requests_session, f"{BASE_URL}/admin/users")
         requests_session.post(
             f"{BASE_URL}/admin/users/{alice_id}/enable",
+            data={"csrf_token": csrf2},
             verify=False,
             allow_redirects=True,
         )
