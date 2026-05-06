@@ -63,6 +63,19 @@ jobs:
               run: |
                   pytest -q tests/test_smoke.py
 
+            - name: Save container logs
+              if: always()
+              run: |
+                  docker compose logs > container-logs.txt
+
+            - name: Upload container logs
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: ci-container-logs
+                  path: container-logs.txt
+                  retention-days: 7
+
             - name: Stop stack
               if: always()
               run: |
