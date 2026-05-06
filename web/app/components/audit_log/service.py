@@ -63,7 +63,14 @@ if not audit_logger.handlers:
     formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s')
     handler.setFormatter(formatter)
     audit_logger.addHandler(handler)
-    audit_logger.propagate = False  # Prevent propagation to root logger / stdout
+
+    # Also log WARNING and above to console for visibility in CI/CD pipeline
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.WARNING)
+    console_handler.setFormatter(formatter)
+    audit_logger.addHandler(console_handler)
+
+    audit_logger.propagate = False  # Prevent propagation to root logger
 
 def _log(level: int, message: str) -> None:
     """Emit *message* at *level* to the dedicated audit file logger."""
@@ -119,7 +126,7 @@ def log_auth_event(
     WARNING  login_failed or outcome == 'failure'  (suspicious activity)
     INFO     login_success, logout                 (normal security event)
     """
-    # Emit to file loggeros.environ.get("AUDIT_LOG_PATH", "audit.log")
+    # Emit to file logger
     level = _choose_level(outcome, action)
     _log(
         level,

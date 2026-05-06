@@ -66,7 +66,7 @@ def _db():
 
 def _fetch_latest(event_category: str, action: str, actor_username: str | None = None):
     """Return the most recent audit_log row matching the given filters from audit.log."""
-    log_path = os.path.join(os.path.dirname(__file__), "..", "web", "audit.log")
+    log_path = os.path.join(os.path.dirname(__file__), "..", "web", "logs", "audit.log")
     if not os.path.exists(log_path):
         return None
 
