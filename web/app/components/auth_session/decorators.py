@@ -5,8 +5,8 @@ Decorators-based enforcement of authentication on protected routes.
 """
 
 import functools
-from time import time
-from flask import session, flash, redirect, url_for
+import time
+from flask import session, flash, redirect, url_for, make_response
 
 import app.components.dal.users as users
 from app.shared.result.Result import Error
@@ -39,7 +39,13 @@ def login_required(fn):
             flash("Your session has expired. Please log in again.", "error")
             return redirect(url_for("auth_session.login"))
         
-        return fn(*args, **kwargs)
+        # Wrap response to prevent browser caching of protected pages
+        response = make_response(fn(*args, **kwargs))
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        
+        return response
 
     return wrapper
 
