@@ -1,3 +1,8 @@
+# tests/api_tests/test_input_validation.py
+"""
+Tests for SR-04 / AD-03a: Input Validation Filter.
+Unit-style tests that exercise the file_validator module directly.
+"""
 import io
 import pytest
 from unittest.mock import patch

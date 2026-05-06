@@ -1,3 +1,10 @@
+# tests/dynamic_tests/test_https.py
+"""
+Tests for AD-02b: HTTPS enforcement and HSTS.
+Dynamic tests — run against a live deployed API instance.
+
+Relocated from test_ad-02b_https.py.
+"""
 import requests
 import urllib3
 
