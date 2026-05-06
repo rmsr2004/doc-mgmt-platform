@@ -97,6 +97,12 @@ jobs:
               run: |
                   pytest -q tests/test_delivery_auth_flow.py
 
+            - name: Run dynamic API security test
+              env:
+                  APP_BASE_URL: https://localhost:443
+              run: |
+                  pytest -q tests/test_sr_12h_dynamic_api_security.py
+
             - name: Promote validated images to dev
               if: success()
               run: |
