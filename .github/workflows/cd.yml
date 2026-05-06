@@ -103,6 +103,26 @@ jobs:
               run: |
                   pytest -q tests/test_sr_12h_dynamic_api_security.py
 
+            - name: Run OWASP ZAP baseline scan
+              continue-on-error: true
+              run: |
+                  mkdir -p zap-report
+                  docker run --rm \
+                    --add-host host.docker.internal:host-gateway \
+                    -v "${{ github.workspace }}/zap-report:/zap/wrk" \
+                    owasp/zap2docker-stable \
+                    zap-baseline.py \
+                      -t https://host.docker.internal:443 \
+                      -r zap-baseline-report.html \
+                      -z "-config connection.sslVerify=false"
+
+            - name: Upload ZAP baseline report
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: zap-baseline-report
+                  path: zap-report/zap-baseline-report.html
+
             - name: Promote validated images to dev
               if: success()
               run: |
