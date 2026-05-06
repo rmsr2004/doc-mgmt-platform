@@ -50,17 +50,17 @@ def login() -> tuple[requests.Session, str]:
     """
     s, token = get_session_with_csrf()
 
+    # POST login and follow redirects to land on the actual rendered page
     resp = s.post(f"{BASE_URL}/login", data={
         "username": "admin",
         "password": "L|fP1D%327mB",
         "csrf_token": token,
-    }, allow_redirects=False)
+    }, allow_redirects=True)
 
-    # After login, fetch the new CSRF token from the next page
-    resp2 = s.get(f"{BASE_URL}/", allow_redirects=False)
+    # Extract the new CSRF token from the rendered page
     match = re.search(
         r'<input[^>]*name=["\']csrf_token["\'][^>]*value=["\']([^"\']+)["\']',
-        resp2.text,
+        resp.text,
     )
     new_token = match.group(1) if match else token
     return s, new_token
@@ -107,8 +107,8 @@ class TestSR11b:
         """SR-11b: authenticated POST without CSRF token must return 403."""
         s, _ = login()
         resp = s.post(
-            f"{BASE_URL}/documents/upload",
-            data={},        # no csrf_token
+            f"{BASE_URL}/documents/1/share",
+            data={"share_with_user_id": 2},  # no csrf_token
             allow_redirects=False,
         )
         assert resp.status_code == 403
@@ -117,8 +117,8 @@ class TestSR11b:
         """SR-11b: authenticated POST with wrong CSRF token must return 403."""
         s, _ = login()
         resp = s.post(
-            f"{BASE_URL}/documents/upload",
-            data={"csrf_token": "totally-wrong-token"},
+            f"{BASE_URL}/documents/1/share",
+            data={"csrf_token": "totally-wrong-token", "share_with_user_id": 2},
             allow_redirects=False,
         )
         assert resp.status_code == 403
@@ -127,8 +127,8 @@ class TestSR11b:
         """SR-11b: POST with valid CSRF token must not return 403."""
         s, token = login()
         resp = s.post(
-            f"{BASE_URL}/documents/upload",
-            data={"csrf_token": token},
+            f"{BASE_URL}/documents/1/share",
+            data={"csrf_token": token, "share_with_user_id": 2},
             allow_redirects=False,
         )
         assert resp.status_code != 403
