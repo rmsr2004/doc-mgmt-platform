@@ -189,12 +189,28 @@ jobs:
                   severity: HIGH,CRITICAL
                   exit-code: 0
 
-            # Only push after the vulnerability scan passes.
+            # Generate Software Bill of Materials (SBOM) in CycloneDX format.
+            # This provides supply chain transparency and traceability for the built image.
+            - name: Generate SBOM for web image
+              uses: anchore/sbom-action@v0.16.1
+              with:
+                  image: ${{ env.WEB_SHA_TAG }}
+                  format: cyclonedx-json
+                  output-file: sbom-web.cyclonedx.json
+
+            - name: Upload web image SBOM
+              uses: actions/upload-artifact@v4
+              with:
+                  name: sbom-web
+                  path: sbom-web.cyclonedx.json
+              # Store SBOM as workflow artifact for compliance and auditing
+
+            # Only push after the vulnerability scan and SBOM generation pass.
             - name: Push web image to GHCR
               run: |
                   docker push "${{ env.WEB_SHA_TAG }}"
 
-            # Repeat the same build-scan-push flow for the database image.
+            # Repeat the same build-scan-sbom-push flow for the database image.
             - name: Build db image locally
               uses: docker/build-push-action@v7
               with:
@@ -211,6 +227,22 @@ jobs:
                   vuln-type: os,library
                   severity: HIGH,CRITICAL
                   exit-code: 0
+
+            # Generate Software Bill of Materials (SBOM) in CycloneDX format.
+            # This provides supply chain transparency and traceability for the built image.
+            - name: Generate SBOM for db image
+              uses: anchore/sbom-action@v0.16.1
+              with:
+                  image: ${{ env.DB_SHA_TAG }}
+                  format: cyclonedx-json
+                  output-file: sbom-db.cyclonedx.json
+
+            - name: Upload db image SBOM
+              uses: actions/upload-artifact@v4
+              with:
+                  name: sbom-db
+                  path: sbom-db.cyclonedx.json
+              # Store SBOM as workflow artifact for compliance and auditing
 
             - name: Push db image to GHCR
               run: |
