@@ -1,5 +1,20 @@
 document.addEventListener("DOMContentLoaded", () => {
 
+    // Dismiss flash notifications when the close button is clicked
+    const flashContainer = document.getElementById("flash-container");
+    if (flashContainer) {
+        flashContainer.addEventListener("click", (e) => {
+            const btn = e.target.closest(".flash-close");
+            if (btn) {
+                const flash = btn.parentElement;
+                flash.style.transition = "opacity 0.3s, transform 0.3s";
+                flash.style.opacity = "0";
+                flash.style.transform = "translateX(20px)";
+                flash.addEventListener("transitionend", () => flash.remove(), { once: true });
+            }
+        });
+    }
+
     const params = new URLSearchParams(window.location.search);
     const title = params.get("uploaded");
 
@@ -9,7 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const li = document.createElement("li");
             li.className = "flash success";
 
-            li.innerHTML = `Document uploaded: ${title}`;
+            li.innerHTML = `Document uploaded: ${title}<button class="flash-close" aria-label="Dismiss notification">&times;</button>`;
 
             container.appendChild(li);
         }
