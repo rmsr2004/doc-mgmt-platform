@@ -40,49 +40,31 @@ written to Flask's application logger so that they appear in server logs.
 
 import logging
 import traceback
-
-import app.components.dal.audit_log as dal
-from flask import current_app
-
+import os
 
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-def _get_logger() -> logging.Logger:
-    """
-    Return the Flask application logger when inside a request context,
-    falling back to the root logger otherwise (e.g. during tests).
-    """
-    try:
-        return current_app.logger
-    except RuntimeError:
-        return logging.getLogger(__name__)
+# Setup dedicated file logger for audit
+audit_logger = logging.getLogger("audit")
+audit_logger.setLevel(logging.INFO)
 
+if not audit_logger.handlers:
+    # Use audit.log in the current directory
+    log_path = os.environ.get("AUDIT_LOG_PATH", "audit.log")
+    handler = logging.FileHandler(log_path)
+    formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s')
+    handler.setFormatter(formatter)
+    audit_logger.addHandler(handler)
+    audit_logger.propagate = False  # Prevent propagation to root logger / stdout
 
 def _log(level: int, message: str) -> None:
-    """Emit *message* at *level* to the application logger, never raising."""
+    """Emit *message* at *level* to the dedicated audit file logger."""
     try:
-        _get_logger().log(level, message)
+        audit_logger.log(level, message)
     except Exception:  # noqa: BLE001
-        # Last-resort: print so the message is never silently lost
         print(f"[audit_log fallback] {logging.getLevelName(level)}: {message}")
-
-
-def _safe_insert(**kwargs) -> None:
-    """
-    Persist an audit event to the database.
-    Swallows all exceptions — a DB write failure must never disrupt the
-    primary HTTP request.  Failures are reported at ERROR level.
-    """
-    try:
-        dal.insert_event(**kwargs)
-    except Exception:  # noqa: BLE001
-        _log(
-            logging.ERROR,
-            f"[AUDIT] DB write failed — {traceback.format_exc()}",
-        )
-
 
 def _choose_level(outcome: str, action: str) -> int:
     """
@@ -94,7 +76,6 @@ def _choose_level(outcome: str, action: str) -> int:
     if outcome == "failure" or action == "login_failed":
         return logging.WARNING
     return logging.INFO
-
 
 def _format_message(event_category: str, action: str, outcome: str, **extra) -> str:
     """Build a consistent, structured log line."""
@@ -132,17 +113,7 @@ def log_auth_event(
     WARNING  login_failed or outcome == 'failure'  (suspicious activity)
     INFO     login_success, logout                 (normal security event)
     """
-    # 1. Persist to DB
-    _safe_insert(
-        event_category="auth",
-        action=action,
-        outcome=outcome,
-        source_ip=source_ip,
-        actor_id=actor_id,
-        actor_username=actor_username,
-    )
-
-    # 2. Emit to Flask logger
+    # Emit to file logger
     level = _choose_level(outcome, action)
     _log(
         level,
@@ -185,18 +156,7 @@ def log_document_event(
     WARNING  outcome == 'failure'  (unauthorised access attempt)
     INFO     outcome == 'success'  (normal document operation)
     """
-    # 1. Persist to DB
-    _safe_insert(
-        event_category="document",
-        action=action,
-        outcome=outcome,
-        source_ip=source_ip,
-        actor_id=actor_id,
-        actor_username=actor_username,
-        document_id=document_id,
-    )
-
-    # 2. Emit to Flask logger
+    # Emit to file logger
     level = _choose_level(outcome, action)
     _log(
         level,
@@ -239,18 +199,7 @@ def log_admin_event(
     WARNING  outcome == 'failure'  (admin action that failed — investigate)
     INFO     outcome == 'success'  (normal administrative operation)
     """
-    # 1. Persist to DB
-    _safe_insert(
-        event_category="admin",
-        action=action,
-        outcome=outcome,
-        source_ip=source_ip,
-        actor_id=admin_id,
-        actor_username=admin_username,
-        target_user_id=target_user_id,
-    )
-
-    # 2. Emit to Flask logger
+    # Emit to file logger
     level = _choose_level(outcome, action)
     _log(
         level,
