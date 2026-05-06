@@ -13,6 +13,7 @@ services:
   web:
     build: ./web
     volumes:
+      - audit_logs:/var/log/docmgmtplatform
       - ./web:/app
     depends_on:
       - db
@@ -26,3 +27,4 @@ services:
 
 volumes:
   pgdata:
+  audit_logs:

@@ -42,6 +42,8 @@ import logging
 import traceback
 import os
 
+from app.config import BASE_DIR
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
@@ -52,7 +54,11 @@ audit_logger.setLevel(logging.INFO)
 
 if not audit_logger.handlers:
     # Use audit.log in the current directory
-    log_path = os.environ.get("AUDIT_LOG_PATH", "audit.log")
+    log_dir = BASE_DIR / "logs"
+    log_path = log_dir / "audit.log"
+
+    os.makedirs(log_dir, exist_ok=True)
+    
     handler = logging.FileHandler(log_path)
     formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s')
     handler.setFormatter(formatter)
@@ -113,7 +119,7 @@ def log_auth_event(
     WARNING  login_failed or outcome == 'failure'  (suspicious activity)
     INFO     login_success, logout                 (normal security event)
     """
-    # Emit to file logger
+    # Emit to file loggeros.environ.get("AUDIT_LOG_PATH", "audit.log")
     level = _choose_level(outcome, action)
     _log(
         level,

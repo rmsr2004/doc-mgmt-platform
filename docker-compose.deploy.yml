@@ -16,6 +16,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    volumes:
+      - audit_logs:/var/log/docmgmtplatform
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\" || exit 1"]
@@ -36,3 +38,4 @@ services:
 
 volumes:
   pgdata:
+  audit_logs:
