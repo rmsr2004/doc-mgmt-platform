@@ -146,6 +146,11 @@ jobs:
                   path: gitleaks-report.json
 
     build-and-push:
+        needs:
+            - test
+            - sca
+            - sast-bandit
+            - secrets-scan
         runs-on: ubuntu-latest
 
         steps:
