@@ -1,11 +1,14 @@
-# tests/test_sr13_auth.py
+# tests/dynamic_tests/test_auth_decorators.py
 """
 Tests for SR-13: Session validation on every protected request.
-MVC app — unauthenticated requests are redirected to login (302).
+Dynamic tests — run against a live deployed API instance.
+
+Relocated from test_sr-13_auth.py.
 """
+import re
+import os
 import requests
 import urllib3
-import os
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 BASE_URL = os.environ.get("BASE_URL", "https://localhost")
@@ -50,7 +53,6 @@ class TestSR13:
 
     def test_valid_session_is_not_redirected(self):
         """SR-13: valid authenticated session must not be redirected to login."""
-        import re
         s = requests.Session()
         s.verify = False
 

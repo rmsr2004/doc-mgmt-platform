@@ -1,3 +1,8 @@
+# tests/api_tests/test_sanitizing_adapter.py
+"""
+Tests for SR-10 / AD-03b: Sanitizing Storage Adapter.
+Unit-style tests that exercise the adapter module directly.
+"""
 import pytest
 from unittest.mock import patch
 from pathlib import Path
