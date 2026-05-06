@@ -20,27 +20,16 @@ Required columns checked per category:
 """
 
 import os
-import re
 import pytest
 import psycopg2
 import psycopg2.extras
+import base64
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 BASE_URL = "https://localhost"
-
-import warnings
-from urllib3.exceptions import InsecureRequestWarning
-warnings.filterwarnings("ignore", category=InsecureRequestWarning)
-
-@pytest.fixture
-def requests_session():
-    import requests
-    s = requests.Session()
-    s.verify = False
-    return s
 
 def _obf(ints):
     return "".join(chr(i) for i in ints)
@@ -58,79 +47,41 @@ def _db():
     return psycopg2.connect(
         host=os.getenv("DB_HOST", "localhost"),
         port=int(os.getenv("DB_PORT", 5432)),
-        dbname=os.getenv("DB_NAME", "docdb"),
+        dbname=os.getenv("DB_NAME", "docmgmt"),
         user=os.getenv("DB_USER", "postgres"),
         password=os.getenv("DB_PASSWORD", "postgres"),
     )
 
 
 def _fetch_latest(event_category: str, action: str, actor_username: str | None = None):
-    """Return the most recent audit_log row matching the given filters from audit.log."""
-    log_path = os.path.join(os.path.dirname(__file__), "..", "web", "logs", "audit.log")
-    if not os.path.exists(log_path):
-        return None
-
-    latest_match = None
-    with open(log_path, 'r') as f:
-        for line in f:
-            if f"category={event_category}" in line and f"action={action}" in line:
-                if actor_username:
-                    if f"user={actor_username}" in line or f"admin={actor_username}" in line:
-                        latest_match = line
-                else:
-                    latest_match = line
-
-    if not latest_match:
-        return None
-
-    # Parse the line into a dict to satisfy test assertions
-    # Format: 2026-05-06 13:00:00,000 | INFO | [AUDIT] category=auth action=login_success outcome=success | user=alice | ip=127.0.0.1
-    parts = latest_match.strip().split(" | ")
-    row = {"timestamp": parts[0]}
-
-    # Extract all key=value pairs
-    for part in parts[2:]:
-        if part.startswith("[AUDIT] "):
-            part = part[8:]
-        for kv in part.split():
-            if "=" in kv:
-                k, v = kv.split("=", 1)
-                row[k] = v
-
-    # Normalize keys for test compatibility
-    if "user" in row:
-        row["actor_username"] = row["user"]
-    if "admin" in row:
-        row["actor_username"] = row["admin"]
-    if "user_id" in row and row["user_id"] != "None":
-        row["actor_id"] = int(row["user_id"])
-    elif "admin_id" in row and row["admin_id"] != "None":
-        row["actor_id"] = int(row["admin_id"])
-    if "doc_id" in row and row["doc_id"] != "None":
-        row["document_id"] = int(row["doc_id"])
-    if "target_user_id" in row and row["target_user_id"] != "None":
-        row["target_user_id"] = int(row["target_user_id"])
-    if "ip" in row:
-        row["source_ip"] = row["ip"]
-
-    row["event_category"] = event_category
-    row["action"] = action
-    
-    return row
+    """Return the most recent audit_log row matching the given filters."""
+    with _db() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            if actor_username:
+                cur.execute(
+                    """
+                    SELECT * FROM audit_log
+                    WHERE event_category = %s AND action = %s AND actor_username = %s
+                    ORDER BY timestamp DESC LIMIT 1
+                    """,
+                    (event_category, action, actor_username),
+                )
+            else:
+                cur.execute(
+                    """
+                    SELECT * FROM audit_log
+                    WHERE event_category = %s AND action = %s
+                    ORDER BY timestamp DESC LIMIT 1
+                    """,
+                    (event_category, action),
+                )
+            return cur.fetchone()
 
 
-def _get_csrf_token(session, url: str) -> str:
-    """Fetch *url* and return the CSRF token from the <meta name="csrf-token"> tag."""
-    r = session.get(url, verify=False)
-    match = re.search(r'<meta name="csrf-token" content="([^"]+)"', r.text)
-    if not match:
-        raise RuntimeError(f"CSRF token not found in {url}")
-    return match.group(1)
-
-
-def _login(session, username: str, password: str):
+def _login(session: "requests.Session", username: str, password: str):
     """POST /login and follow the redirect."""
-    session.get(f"{BASE_URL}/login", verify=False)
+    r = session.get(f"{BASE_URL}/login", verify=False)
+    # extract CSRF token from cookie / form if needed — kept simple here
     return session.post(
         f"{BASE_URL}/login",
         data={"username": username, "password": password},
@@ -273,10 +224,9 @@ class TestDocumentAuditLog:
                 bob = cur.fetchone()
         assert bob, "bob user not found"
 
-        csrf = _get_csrf_token(requests_session, f"{BASE_URL}/documents/{doc_id}")
         requests_session.post(
             f"{BASE_URL}/documents/{doc_id}/share",
-            data={"share_with_user_id": bob["id"], "csrf_token": csrf},
+            data={"share_with_user_id": bob["id"]},
             verify=False,
             allow_redirects=True,
         )
@@ -310,10 +260,8 @@ class TestAdminAuditLog:
         alice_id = self._get_alice_id()
         assert alice_id, "alice not found"
 
-        csrf = _get_csrf_token(requests_session, f"{BASE_URL}/admin/users")
         requests_session.post(
             f"{BASE_URL}/admin/users/{alice_id}/disable",
-            data={"csrf_token": csrf},
             verify=False,
             allow_redirects=True,
         )
@@ -329,10 +277,8 @@ class TestAdminAuditLog:
         assert row["timestamp"] is not None
 
         # cleanup — re-enable alice
-        csrf2 = _get_csrf_token(requests_session, f"{BASE_URL}/admin/users")
         requests_session.post(
             f"{BASE_URL}/admin/users/{alice_id}/enable",
-            data={"csrf_token": csrf2},
             verify=False,
             allow_redirects=True,
         )
@@ -343,18 +289,14 @@ class TestAdminAuditLog:
         alice_id = self._get_alice_id()
         assert alice_id, "alice not found"
 
-        csrf = _get_csrf_token(requests_session, f"{BASE_URL}/admin/users")
         # disable first so enable makes sense
         requests_session.post(
             f"{BASE_URL}/admin/users/{alice_id}/disable",
-            data={"csrf_token": csrf},
             verify=False,
             allow_redirects=True,
         )
-        csrf2 = _get_csrf_token(requests_session, f"{BASE_URL}/admin/users")
         requests_session.post(
             f"{BASE_URL}/admin/users/{alice_id}/enable",
-            data={"csrf_token": csrf2},
             verify=False,
             allow_redirects=True,
         )
@@ -375,10 +317,8 @@ class TestAdminAuditLog:
         alice_id = self._get_alice_id()
         assert alice_id, "alice not found"
 
-        csrf = _get_csrf_token(requests_session, f"{BASE_URL}/admin/users")
         requests_session.post(
             f"{BASE_URL}/admin/users/{alice_id}/disable",
-            data={"csrf_token": csrf},
             verify=False,
             allow_redirects=True,
         )
@@ -388,10 +328,8 @@ class TestAdminAuditLog:
         assert row["actor_username"] == "admin"
 
         # cleanup
-        csrf2 = _get_csrf_token(requests_session, f"{BASE_URL}/admin/users")
         requests_session.post(
             f"{BASE_URL}/admin/users/{alice_id}/enable",
-            data={"csrf_token": csrf2},
             verify=False,
             allow_redirects=True,
         )

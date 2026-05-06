@@ -61,6 +61,16 @@ def upload_document(owner_id, title, filename, uuid_filename, metadata) -> Resul
     
     return Result.ok(None)
 
+def get_document_by_uuid(uuid_filename: str) -> Result:
+    row = documents.get_document_by_uuid(uuid_filename)
+
+    if type(row) is Error:
+        return Result.fail(row)
+
+    if not row:
+        return Result.fail(Error(message="Document not found", http_code=404))
+
+    return Result.ok({"id": row["id"]})
 
 def share_document(document_id, target_user_id) -> Result:
     row = documents.share_document(document_id, target_user_id)
