@@ -1,5 +1,3 @@
-from flask import session
-
 from app.shared.result.Result import Result, Error
 from app.components.dal import documents
 
@@ -24,6 +22,3 @@ def verify_document_access(document_id: int, user_id: int) -> Result:
         return Result.ok(None)
     
     return Result.fail(Error(message="You do not have permission to access this document", http_code=403))
-
-def verify_if_admin(user_id: int) -> bool:
-    return session.get("is_admin")

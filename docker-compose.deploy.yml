@@ -4,6 +4,9 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    depends_on:
+      web:
+        condition: service_healthy
     volumes:
       - ./web/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./web/nginx/certs:/etc/nginx/certs:ro
@@ -11,14 +14,25 @@ services:
   web:
     image: ${WEB_IMAGE}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\" || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
 
   db:
     image: ${DB_IMAGE}
     volumes:
       - pgdata:/var/lib/postgresql/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d docdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
 
 volumes:
   pgdata:

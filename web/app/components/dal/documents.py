@@ -36,6 +36,12 @@ def get_document_share(document_id, target_user_id):
         (document_id, target_user_id, )
     )
 
+def get_document_by_uuid(uuid_filename):
+    return utils.query_fetch_one(
+        "SELECT id FROM documents WHERE uuid_filename = %s",
+        (uuid_filename, )
+    )
+
 def get_shared_documents_for_user(user_id):
     return utils.query_fetch_all(
         """
