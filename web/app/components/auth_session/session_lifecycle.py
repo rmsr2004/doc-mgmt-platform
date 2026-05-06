@@ -48,7 +48,7 @@ def open_session(user) -> None:
     session["user_id"]  = user['id']
     session["username"] = user['username']
     session["is_admin"] = user['username'] == "admin"
-    session.permanent = True
+    session.permanent = False
     csrf.rotate_csrf_token()
     return
 
