@@ -43,6 +43,12 @@ def _extract_metadata(filename):
 @login_required
 def documents_page():
     user_id = session.get("user_id")
+    
+    is_admin = authz_service.verify_if_admin(user_id)
+
+    if is_admin:
+        flash("You do not have access to this page.", "error")
+        return redirect(url_for("admin.admin_page"))
 
     documents = service.get_documents_for_user(user_id)
 
