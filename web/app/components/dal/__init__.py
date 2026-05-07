@@ -15,5 +15,6 @@ Security guarantees (SR-05):
 Modules:
 - users.py      — User account operations (lookup, toggle active status)
 - documents.py  — Document operations (ownership, access, upload metadata)
+- audit_log.py  — Audit log operations (insert_event; called by audit_log service only)
 - utils.py      — Database connection management and query execution wrappers
 """

@@ -70,7 +70,7 @@ jobs:
                       exit 1
                     fi
 
-                    echo "Waiting for application..."
+                    echo "Waiting for application... (${elapsed}s)"
                     sleep 2
                     elapsed=$((elapsed+2))
                   done
@@ -132,10 +132,18 @@ jobs:
                   docker push "${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE_LC }}/${{ env.WEB_IMAGE_NAME }}:dev"
                   docker push "${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE_LC }}/${{ env.DB_IMAGE_NAME }}:dev"
 
-            - name: Show container logs on failure
-              if: failure()
+            - name: Save container logs
+              if: always()
               run: |
-                  docker compose -f docker-compose.deploy.yml logs
+                  docker compose -f docker-compose.deploy.yml logs > deploy-container-logs.txt
+
+            - name: Upload container logs
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: cd-container-logs
+                  path: deploy-container-logs.txt
+                  retention-days: 7
 
             - name: Stop delivery environment
               if: always()

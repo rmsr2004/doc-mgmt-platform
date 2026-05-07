@@ -27,6 +27,41 @@ CREATE TABLE
     );
 
 -- ---------------------------------------------------------------------------
+-- AUDIT LOG TABLE
+--
+-- Records every auditable event in the system:
+--   • Authentication events (login, logout, failed login)
+--   • Document access and sharing operations
+--   • Administrative actions (enable/disable accounts, role changes)
+--
+-- Fields:
+--   event_category  — 'auth' | 'document' | 'admin'
+--   actor_id        — the user who performed the action (NULL for pre-auth failures)
+--   actor_username  — snapshot of username at time of event (preserved if deleted)
+--   target_user_id  — affected user (for admin events)
+--   document_id     — affected document (for document events)
+--   action          — e.g. 'login_success', 'login_failed', 'logout',
+--                         'document_view', 'document_upload', 'document_download',
+--                         'document_share', 'user_enabled', 'user_disabled'
+--   outcome         — 'success' | 'failure'
+--   source_ip       — remote IP address of the request
+--   timestamp       — UTC timestamp of the event
+-- ---------------------------------------------------------------------------
+CREATE TABLE
+    audit_log (
+        id SERIAL PRIMARY KEY,
+        event_category TEXT NOT NULL,
+        actor_id INTEGER REFERENCES users (id) ON DELETE SET NULL,
+        actor_username TEXT,
+        target_user_id INTEGER REFERENCES users (id) ON DELETE SET NULL,
+        document_id INTEGER REFERENCES documents (id) ON DELETE SET NULL,
+        action TEXT NOT NULL,
+        outcome TEXT NOT NULL DEFAULT 'success',
+        source_ip TEXT,
+        timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+-- ---------------------------------------------------------------------------
 -- IMPORTANT — VALIDATOR ACCOUNTS
 --
 -- The following user accounts are required for the automated validation
