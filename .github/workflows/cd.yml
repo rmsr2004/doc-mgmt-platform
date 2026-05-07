@@ -89,8 +89,8 @@ jobs:
             - name: Install test dependencies
               run: |
                   python -m pip install --upgrade pip
-                  pip install pytest requests werkzeug
-
+                  pip install -r web/requirements.txt
+                  pip install pytest requests
             - name: Run dynamic API security tests
               env:
                   APP_BASE_URL: https://localhost:443
