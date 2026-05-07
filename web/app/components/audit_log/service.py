@@ -53,24 +53,25 @@ audit_logger = logging.getLogger("audit")
 audit_logger.setLevel(logging.INFO)
 
 if not audit_logger.handlers:
-    # Use audit.log in the current directory
     log_dir = BASE_DIR / "logs"
     log_path = log_dir / "audit.log"
 
-    os.makedirs(log_dir, exist_ok=True)
-    
-    handler = logging.FileHandler(log_path)
     formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s')
-    handler.setFormatter(formatter)
-    audit_logger.addHandler(handler)
 
-    # Also log WARNING and above to console for visibility in CI/CD pipeline
+    try:
+        os.makedirs(log_dir, exist_ok=True)
+        handler = logging.FileHandler(log_path)
+        handler.setFormatter(formatter)
+        audit_logger.addHandler(handler)
+    except (PermissionError, OSError):
+        pass
+
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.WARNING)
     console_handler.setFormatter(formatter)
     audit_logger.addHandler(console_handler)
 
-    audit_logger.propagate = False  # Prevent propagation to root logger
+    audit_logger.propagate = False
 
 def _log(level: int, message: str) -> None:
     """Emit *message* at *level* to the dedicated audit file logger."""
