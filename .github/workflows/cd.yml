@@ -91,17 +91,11 @@ jobs:
                   python -m pip install --upgrade pip
                   pip install pytest requests
 
-            - name: Run delivery authentication flow test
+            - name: Run dynamic API security tests
               env:
                   APP_BASE_URL: https://localhost:443
               run: |
-                  pytest -q tests/test_delivery_auth_flow.py
-
-            - name: Run dynamic API security test
-              env:
-                  APP_BASE_URL: https://localhost:443
-              run: |
-                  pytest -q tests/test_sr_12h_dynamic_api_security.py
+                  pytest -q tests/dynamic_tests
 
             - name: Run OWASP ZAP baseline scan
               continue-on-error: true

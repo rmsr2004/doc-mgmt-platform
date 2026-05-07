@@ -61,7 +61,7 @@ jobs:
 
             - name: Run smoke tests
               run: |
-                  pytest -q tests/test_smoke.py
+                  pytest -q tests/static_tests
 
             - name: Stop stack
               if: always()
