@@ -1,3 +1,5 @@
+from flask import session
+
 from app.shared.result.Result import Result, Error
 from app.components.dal import documents
 
