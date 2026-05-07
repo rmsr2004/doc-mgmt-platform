@@ -21,8 +21,11 @@ Audit logging (SR-06-B):
     'document_share'    — user shares a document with another user
     'shared_download'   — user downloads a document shared with them
 """
+<<<<<<< HEAD
 import subprocess
 
+=======
+>>>>>>> fa8d378 ([SR-06][AD-05] feat(audit): add centralized audit logging for auth, document, and admin events (#143))
 from flask import Blueprint, request, session, redirect, url_for, render_template, flash, send_from_directory, abort
 from markupsafe import escape
 
@@ -32,7 +35,10 @@ from app.components.input_validation_filter import file_validator
 from app.components.sanitizing_storage_adapter import adapter as storage_sanitizer
 from app.components.upload_guard import limiter
 from app.components.audit_log import log_document_event
+<<<<<<< HEAD
 from app.components.dal import users
+=======
+>>>>>>> fa8d378 ([SR-06][AD-05] feat(audit): add centralized audit logging for auth, document, and admin events (#143))
 from app.config import UPLOAD_FOLDER, UPLOAD_RATE_LIMIT
 from . import service
 
@@ -50,12 +56,6 @@ def _extract_metadata(filename):
 @login_required
 def documents_page():
     user_id = session.get("user_id")
-    
-    is_admin = authz_service.verify_if_admin(user_id)
-
-    if is_admin:
-        flash("You do not have access to this page.", "error")
-        return redirect(url_for("admin.admin_page"))
 
     documents = service.get_documents_for_user(user_id)
 
@@ -157,7 +157,11 @@ def upload_document():
 
     # SR-06-B: log successful upload — fetch document id from the newly created row
     new_doc = service.get_document_by_uuid(uuid_filename)
+<<<<<<< HEAD
     doc_id = new_doc.value
+=======
+    doc_id = new_doc.value["id"] if new_doc and new_doc.is_ok() else None
+>>>>>>> fa8d378 ([SR-06][AD-05] feat(audit): add centralized audit logging for auth, document, and admin events (#143))
 
     log_document_event(
         action="document_upload",
@@ -224,9 +228,14 @@ def download_document(document_id):
 @document_bp.route("/documents/<int:document_id>/share", methods=["POST"])
 @login_required
 def share_document(document_id):
+<<<<<<< HEAD
     user_id = session.get("user_id")
     
     share_with_user_id = request.form.get("share_with_user_id", "").strip()
+=======
+    share_with_user_id = request.form.get("share_with_user_id")
+    user_id = session.get("user_id")
+>>>>>>> fa8d378 ([SR-06][AD-05] feat(audit): add centralized audit logging for auth, document, and admin events (#143))
     
     if not share_with_user_id:
         flash("Please provide a user ID to share with.", "error")

@@ -5,8 +5,8 @@ Decorators-based enforcement of authentication on protected routes.
 """
 
 import functools
-import time
-from flask import session, flash, redirect, url_for, make_response, request, current_app
+from time import time
+from flask import session, flash, redirect, url_for
 
 import app.components.dal.users as users
 from app.shared.result.Result import Error
@@ -16,14 +16,7 @@ def login_required(fn):
     def wrapper(*args, **kwargs):
 
         if "user_id" not in session:
-            # If the browser sent a cookie but the session is empty, Flask automatically
-            # destroyed it because it exceeded PERMANENT_SESSION_LIFETIME.
-            cookie_name = current_app.config.get("SESSION_COOKIE_NAME", "session")
-            if request.cookies.get(cookie_name):
-                flash("Your session has expired. Please log in again.", "error")
-            else:
-                flash("Please log in first.", "error")
-                
+            flash("Please log in first.", "error")
             return redirect(url_for("auth_session.login"))
 
         # checks if the user still exists and is active
@@ -75,6 +68,16 @@ def admin_required(fn):
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
         if not session.get("is_admin"):
+            flash("You do not have permission to access this page.", "error")
+            return redirect(url_for("index.index"))
+        return fn(*args, **kwargs)
+
+    return wrapper
+
+def admin_required(fn):
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        if not session["is_admin"]:
             flash("You do not have permission to access this page.", "error")
             return redirect(url_for("index.index"))
         return fn(*args, **kwargs)
