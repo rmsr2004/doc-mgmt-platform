@@ -13,14 +13,18 @@ services:
   web:
     build: ./web
     volumes:
+      - audit_logs:/var/log/docmgmtplatform
       - ./web:/app
     depends_on:
       - db
 
   db:
     build: ./db
+    ports:
+      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 
 volumes:
   pgdata:
+  audit_logs:

@@ -36,7 +36,7 @@ jobs:
                       exit 1
                     fi
 
-                    echo "Waiting for application..."
+                    echo "Waiting for application... (${elapsed}s)"
                     sleep 2
                     elapsed=$((elapsed+2))
                   done
@@ -63,6 +63,19 @@ jobs:
             - name: Run smoke tests
               run: |
                   pytest -q tests/static_tests
+
+            - name: Save container logs
+              if: always()
+              run: |
+                  docker compose logs > container-logs.txt
+
+            - name: Upload container logs
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: ci-container-logs
+                  path: container-logs.txt
+                  retention-days: 7
 
             - name: Stop stack
               if: always()
