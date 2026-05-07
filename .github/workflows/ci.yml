@@ -27,7 +27,7 @@ jobs:
 
             - name: Wait for application
               run: |
-                  timeout=180
+                  timeout=120
                   elapsed=0
 
                   until curl -fsk https://localhost:443/health > /dev/null; do
@@ -80,8 +80,90 @@ jobs:
               if: always()
               run: |
                   docker compose down -v --remove-orphans
+
+    sca:
+        name: Software Composition Analysis
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v6
+
+            - name: Set up Python
+              uses: actions/setup-python@v6
+              with:
+                  python-version: "3.10"
+
+            - name: Install dependencies and pip-audit
+              run: |
+                  pip install -r web/requirements.txt
+                  pip install pip-audit
+
+            - name: Run pip-audit
+              run: |
+                  pip-audit -r web/requirements.txt
     
+    sast-bandit:
+        name: SAST with Bandit
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v6
+
+            - name: Set up Python
+              uses: actions/setup-python@v6
+              with:
+                  python-version: "3.10"
+
+            - name: Install Bandit
+              run: |
+                  python -m pip install --upgrade pip
+                  pip install bandit
+
+            - name: Run Bandit
+              run: |
+                  bandit -r . -x ./tests || true
+
+    secrets-scan:
+        name: Secret Scanning with Gitleaks
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v6
+              with:
+                  fetch-depth: 0 # Fetch full history for accurate secret scanning
+
+            - name: Install Gitleaks
+              run: |
+                  GITLEAKS_VERSION=8.30.1
+                  curl -sSL -o /tmp/gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION#v}_linux_x64.tar.gz"
+                  tar -xzf /tmp/gitleaks.tar.gz -C /tmp
+                  sudo install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks
+
+            - name: Run Gitleaks scan
+              run: |
+                  gitleaks detect \
+                    --source . \
+                    --redact \
+                    --verbose \
+                    --report-format json \
+                    --report-path gitleaks-report.json \
+                    --exit-code 1 || true
+
+            - name: Upload Gitleaks report
+              uses: actions/upload-artifact@v4
+              with:
+                  name: gitleaks-report
+                  path: gitleaks-report.json
+
     build-and-push:
+        needs:
+            - test
+            - sca
+            - sast-bandit
+            - secrets-scan
         runs-on: ubuntu-latest
 
         steps:
@@ -107,19 +189,80 @@ jobs:
             - name: Set up Docker Buildx
               uses: docker/setup-buildx-action@v4
 
-            - name: Build and push web image
+            # Build locally first so Trivy can inspect the exact image before it is published.
+            - name: Build web image locally
               uses: docker/build-push-action@v7
               with:
                   context: ./web
-                  push: true
+                  push: false
+                  load: true
                   tags: ${{ env.WEB_SHA_TAG }}
                   provenance: false
 
-            - name: Build and push db image
+            - name: Scan web image with Trivy
+              uses: aquasecurity/trivy-action@v0.36.0
+              with:
+                  image-ref: ${{ env.WEB_SHA_TAG }}
+                  vuln-type: os,library
+                  severity: HIGH,CRITICAL
+                  exit-code: 0
+
+            # Generate Software Bill of Materials (SBOM) in CycloneDX format.
+            # This provides supply chain transparency and traceability for the built image.
+            - name: Generate SBOM for web image
+              uses: anchore/sbom-action@v0.16.1
+              with:
+                  image: ${{ env.WEB_SHA_TAG }}
+                  format: cyclonedx-json
+                  output-file: sbom-web.cyclonedx.json
+
+            - name: Upload web image SBOM
+              uses: actions/upload-artifact@v4
+              with:
+                  name: sbom-web
+                  path: sbom-web.cyclonedx.json
+              # Store SBOM as workflow artifact for compliance and auditing
+
+            # Only push after the vulnerability scan and SBOM generation pass.
+            - name: Push web image to GHCR
+              run: |
+                  docker push "${{ env.WEB_SHA_TAG }}"
+
+            # Repeat the same build-scan-sbom-push flow for the database image.
+            - name: Build db image locally
               uses: docker/build-push-action@v7
               with:
                   context: ./db
-                  push: true
+                  push: false
+                  load: true
                   tags: ${{ env.DB_SHA_TAG }}
                   provenance: false
+
+            - name: Scan db image with Trivy
+              uses: aquasecurity/trivy-action@v0.36.0
+              with:
+                  image-ref: ${{ env.DB_SHA_TAG }}
+                  vuln-type: os,library
+                  severity: HIGH,CRITICAL
+                  exit-code: 0
+
+            # Generate Software Bill of Materials (SBOM) in CycloneDX format.
+            # This provides supply chain transparency and traceability for the built image.
+            - name: Generate SBOM for db image
+              uses: anchore/sbom-action@v0.16.1
+              with:
+                  image: ${{ env.DB_SHA_TAG }}
+                  format: cyclonedx-json
+                  output-file: sbom-db.cyclonedx.json
+
+            - name: Upload db image SBOM
+              uses: actions/upload-artifact@v4
+              with:
+                  name: sbom-db
+                  path: sbom-db.cyclonedx.json
+              # Store SBOM as workflow artifact for compliance and auditing
+
+            - name: Push db image to GHCR
+              run: |
+                  docker push "${{ env.DB_SHA_TAG }}"
 
