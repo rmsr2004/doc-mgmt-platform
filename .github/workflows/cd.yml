@@ -52,6 +52,9 @@ jobs:
                   docker pull "$WEB_IMAGE"
                   docker pull "$DB_IMAGE"
 
+            - name: Init Docker Swarm
+              run: docker swarm init
+              
             - name: Start delivery environment
               env:
                   WEB_IMAGE: ${{ env.WEB_IMAGE }}
