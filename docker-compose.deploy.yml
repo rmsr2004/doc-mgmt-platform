@@ -51,11 +51,14 @@ volumes:
 networks:
   public:
     driver: overlay
+    attachable: true
   
   private_flask:
     driver: overlay
     internal: true
+    attachable: true
 
   private_db:
     driver: overlay
     internal: true
+    attachable: true

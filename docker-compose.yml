@@ -12,7 +12,7 @@ services:
     networks:
       - public
       - private_flask
-
+    
   web:
     build: ./web
     volumes:
@@ -23,6 +23,8 @@ services:
     networks:
       - private_flask
       - private_db
+    cap_add:
+      - NET_ADMIn
 
   db:
     build: ./db
@@ -30,6 +32,8 @@ services:
       - pgdata:/var/lib/postgresql/data
     networks:
       - private_db
+    cap_add:
+      - NET_ADMIN
 
 volumes:
   pgdata:
@@ -37,15 +41,12 @@ volumes:
 
 networks:
   public:
-    driver: overlay
-    attachable: true
+    driver: bridge
   
   private_flask:
-    driver: overlay
+    driver: bridge
     internal: true
-    attachable: true
 
   private_db:
-    driver: overlay
+    driver: bridge
     internal: true
-    attachable: true
