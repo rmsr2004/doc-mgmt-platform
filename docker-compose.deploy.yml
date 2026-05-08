@@ -50,15 +50,12 @@ volumes:
 
 networks:
   public:
-    driver: overlay
-    attachable: true
+    driver: bridge
   
   private_flask:
-    driver: overlay
+    driver: bridge
     internal: true
-    attachable: true
 
   private_db:
-    driver: overlay
+    driver: bridge
     internal: true
-    attachable: true

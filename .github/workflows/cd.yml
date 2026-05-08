@@ -51,9 +51,6 @@ jobs:
               run: |
                   docker pull "$WEB_IMAGE"
                   docker pull "$DB_IMAGE"
-
-            - name: Init Docker Swarm
-              run: docker swarm init
               
             - name: Start delivery environment
               env:
@@ -100,7 +97,7 @@ jobs:
                   APP_BASE_URL: https://localhost:443
               run: |
                   pytest -q tests/dynamic_tests --ignore tests/dynamic_tests/test_network_segmentation.py
-                  STACK_NAME=doc-mgmt-platform pytest -q tests/dynamic_tests/test_network_segmentation.py
+                  pytest -q tests/dynamic_tests/test_network_segmentation.py
 
             - name: Run OWASP ZAP baseline scan
               continue-on-error: true
