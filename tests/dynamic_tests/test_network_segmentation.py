@@ -4,17 +4,20 @@ import os
 
 PROJECT = "doc-mgmt-platform"
 
+NETSHOOT = {
+    "private_flask": "netshoot-flask",
+    "private_db":    "netshoot-db",
+    "public":        "netshoot-public",
+}
+
 def nc_test(network, host, port, timeout=3):
-    """
-    Returns True if the connection was successfull
-    Returns False if failed or timed out (connection blocked)
-    """
+    service = NETSHOOT[network]
     try:
         result = subprocess.run(
             [
-                "docker", "run", "--rm",
-                "--network", f"{PROJECT}_{network}",
-                "nicolaka/netshoot",
+                "docker", "compose",
+                "-f", "docker-compose.deploy.yml",
+                "exec", "-T", service,
                 "sh", "-c", f"nc -zv -w{timeout} {host} {port}"
             ],
             capture_output=True, text=True,
