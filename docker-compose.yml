@@ -9,7 +9,10 @@ services:
     volumes:
       - ./web/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./web/nginx/certs:/etc/nginx/certs:ro
-  
+    networks:
+      - public
+      - private_flask
+
   web:
     build: ./web
     volumes:
@@ -17,14 +20,29 @@ services:
       - ./web:/app
     depends_on:
       - db
+    networks:
+      - private_flask
+      - private_db
 
   db:
     build: ./db
-    ports:
-      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    networks:
+      - private_db
 
 volumes:
   pgdata:
   audit_logs:
+
+networks:
+  public:
+    driver: bridge
+  
+  private_flask:
+    driver: bridge
+    internal: true
+
+  private_db:
+    driver: bridge
+    internal: true
