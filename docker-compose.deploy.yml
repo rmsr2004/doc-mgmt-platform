@@ -10,6 +10,9 @@ services:
     volumes:
       - ./web/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./web/nginx/certs:/etc/nginx/certs:ro
+    networks:
+      - public
+      - private_flask
 
   web:
     image: ${WEB_IMAGE}
@@ -24,6 +27,9 @@ services:
       interval: 5s
       timeout: 3s
       retries: 30
+    networks:
+      - private_flask
+      - private_db
 
   db:
     image: ${DB_IMAGE}
@@ -35,7 +41,39 @@ services:
       interval: 5s
       timeout: 3s
       retries: 30
+    networks:
+      - private_db
+  
+  netshoot-flask:
+    image: nicolaka/netshoot
+    command: sleep infinity
+    networks:
+      - private_flask
+
+  netshoot-db:
+    image: nicolaka/netshoot
+    command: sleep infinity
+    networks:
+      - private_db
+
+  netshoot-public:
+    image: nicolaka/netshoot
+    command: sleep infinity
+    networks:
+      - public
 
 volumes:
   pgdata:
   audit_logs:
+
+networks:
+  public:
+    driver: bridge
+  
+  private_flask:
+    driver: bridge
+    internal: true
+
+  private_db:
+    driver: bridge
+    internal: true

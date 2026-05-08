@@ -51,7 +51,7 @@ jobs:
               run: |
                   docker pull "$WEB_IMAGE"
                   docker pull "$DB_IMAGE"
-
+              
             - name: Start delivery environment
               env:
                   WEB_IMAGE: ${{ env.WEB_IMAGE }}
@@ -91,11 +91,13 @@ jobs:
                   python -m pip install --upgrade pip
                   pip install -r web/requirements.txt
                   pip install pytest requests
+
             - name: Run dynamic API security tests
               env:
                   APP_BASE_URL: https://localhost:443
               run: |
-                  pytest -q tests/dynamic_tests
+                  pytest -q tests/dynamic_tests --ignore tests/dynamic_tests/test_network_segmentation.py
+                  pytest -q tests/dynamic_tests/test_network_segmentation.py
 
             - name: Run OWASP ZAP baseline scan
               continue-on-error: true
