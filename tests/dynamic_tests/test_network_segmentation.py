@@ -1,7 +1,8 @@
 import subprocess
 import pytest
+import os
 
-PROJECT = "doc-mgmt-platform"
+PROJECT = os.environ.get("STACK_NAME", "doc-mgmt-platform")
 
 def nc_test(network, host, port, timeout=3):
     """
