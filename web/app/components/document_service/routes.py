@@ -147,7 +147,7 @@ def upload_document():
 
     # SR-06-B: log successful upload — fetch document id from the newly created row
     new_doc = service.get_document_by_uuid(uuid_filename)
-    doc_id = new_doc.value["id"] if new_doc and new_doc.is_ok() else None
+    doc_id = new_doc.value
 
     log_document_event(
         action="document_upload",
