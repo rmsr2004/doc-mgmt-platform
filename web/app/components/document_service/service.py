@@ -50,7 +50,7 @@ def get_document_by_uuid(uuid_filename: str) -> Result:
     if not row:
         return Result.fail(Error(message="Document not found", http_code=404))
 
-    return Result.ok({"id": row["id"]})
+    return Result.ok(row["id"])
 
 def upload_document(owner_id, title, filename, uuid_filename, metadata) -> Result:
     result = documents.upload_document(owner_id, title, filename, uuid_filename, metadata)
