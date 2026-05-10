@@ -87,3 +87,4 @@ def disable_user_account(user_id):
     
     flash("User status updated successfully.", "success")
     return redirect(url_for("admin.admin_page"))
+

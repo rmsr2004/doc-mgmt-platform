@@ -29,6 +29,7 @@ from app.components.input_validation_filter import file_validator
 from app.components.sanitizing_storage_adapter import adapter as storage_sanitizer
 from app.components.upload_guard import limiter
 from app.components.audit_log import log_document_event
+from app.components.dal import users
 from app.config import UPLOAD_FOLDER, UPLOAD_RATE_LIMIT
 from . import service
 from app import utils
@@ -315,3 +316,15 @@ def download_shared_document(document_id):
         as_attachment=True,
         download_name=doc['filename']    
     )
+       
+@document_bp.route("/documents/users")
+@login_required
+def list_users():
+    users_list = users.get_all_users()
+        
+    return [
+        {
+            "id": user["id"],
+            "username": user["username"]
+        } for user in users_list if user["username"] != "admin"
+    ]
