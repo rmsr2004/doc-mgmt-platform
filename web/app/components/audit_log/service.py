@@ -39,6 +39,7 @@ written to Flask's application logger so that they appear in server logs.
 """
 
 import logging
+from pathlib import Path
 import traceback
 import os
 
@@ -48,14 +49,15 @@ from app.config import BASE_DIR
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+log_dir_env = os.getenv("AUDIT_LOG_DIR")
+log_dir = Path(log_dir_env) if log_dir_env else BASE_DIR / "logs"
+log_path = log_dir / "audit.log"
+
 # Setup dedicated file logger for audit
 audit_logger = logging.getLogger("audit")
 audit_logger.setLevel(logging.INFO)
 
 if not audit_logger.handlers:
-    log_dir = BASE_DIR / "logs"
-    log_path = log_dir / "audit.log"
-
     formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s')
 
     try:
