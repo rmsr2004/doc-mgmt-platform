@@ -127,7 +127,7 @@
             document.getElementById("share-form").action = `/documents/${docId}/share`;
             select.innerHTML = '<option value="" disabled selected>Loading...</option>';
 
-            fetch("/users")
+            fetch("/documents/users")
                 .then(r => r.json())
                 .then(users => {
                     select.innerHTML = '<option value="" disabled selected>Select a user...</option>';
