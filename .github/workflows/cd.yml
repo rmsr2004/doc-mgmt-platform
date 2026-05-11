@@ -100,17 +100,11 @@ jobs:
                   pytest -q tests/dynamic_tests/test_network_segmentation.py
 
             - name: Run OWASP ZAP baseline scan
+              uses: zaproxy/action-baseline@v0.14.0
               continue-on-error: true
-              run: |
-                  mkdir -p zap-report
-                  docker run --rm \
-                    --add-host host.docker.internal:host-gateway \
-                    -v "${{ github.workspace }}/zap-report:/zap/wrk" \
-                    owasp/zap2docker-stable \
-                    zap-baseline.py \
-                      -t https://host.docker.internal:443 \
-                      -r zap-baseline-report.html \
-                      -z "-config connection.sslVerify=false"
+              with:
+                target: "https://localhost:443"
+                allow_issue_writing: false
 
             - name: Upload ZAP baseline report
               if: always()
