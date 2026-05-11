@@ -21,6 +21,8 @@ Audit logging (SR-06-B):
     'document_share'    — user shares a document with another user
     'shared_download'   — user downloads a document shared with them
 """
+import subprocess
+
 from flask import Blueprint, request, session, redirect, url_for, render_template, flash, send_from_directory, abort
 from markupsafe import escape
 
@@ -33,13 +35,16 @@ from app.components.audit_log import log_document_event
 from app.components.dal import users
 from app.config import UPLOAD_FOLDER, UPLOAD_RATE_LIMIT
 from . import service
-from app import utils
 
 document_bp = Blueprint("documents", __name__)
 
+def _call(cmd: list[str]) -> str:
+    result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    return result.stdout
+
 def _extract_metadata(filename):
-    cmd = utils.build("stat ", str(filename), " 2>&1")
-    return utils.call(cmd)
+    cmd = ["stat", str(filename)]
+    return _call(cmd)
 
 @document_bp.route("/documents")
 @login_required

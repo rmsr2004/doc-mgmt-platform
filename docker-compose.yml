@@ -17,9 +17,12 @@ services:
     build: ./web
     environment:
       - AUDIT_LOG_DIR=/var/log/docmgmtplatform
+      - FLASK_DEBUG=true
     volumes:
       - audit_logs:/var/log/docmgmtplatform
-      - ./web:/app
+      - ./web/app:/app/app
+      - ./web/static:/app/static
+      - ./web/templates:/app/templates
     depends_on:
       - db
     networks:
