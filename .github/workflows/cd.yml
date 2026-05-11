@@ -138,6 +138,7 @@ jobs:
                   pytest -q tests/test_sr_12h_dynamic_api_security.py
 
             - name: Run OWASP ZAP baseline scan
+              uses: zaproxy/action-baseline@v0.14.0
               continue-on-error: true
               run: |
                   mkdir -p zap-report
