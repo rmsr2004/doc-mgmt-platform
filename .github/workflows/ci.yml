@@ -223,7 +223,16 @@ jobs:
                   image-ref: ${{ env.WEB_SHA_TAG }}
                   vuln-type: os,library
                   severity: HIGH,CRITICAL
+                  format: sarif
+                  output: trivy-web.sarif
                   exit-code: 0
+
+            - name: Upload Trivy web report
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: trivy-web-report
+                  path: trivy-web.sarif
 
             # Generate Software Bill of Materials (SBOM) in CycloneDX format.
             # This provides supply chain transparency and traceability for the built image.
@@ -262,7 +271,16 @@ jobs:
                   image-ref: ${{ env.DB_SHA_TAG }}
                   vuln-type: os,library
                   severity: HIGH,CRITICAL
+                  format: sarif
+                  output: trivy-db.sarif
                   exit-code: 0
+
+            - name: Upload Trivy db report
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: trivy-db-report
+                  path: trivy-db.sarif
 
             # Generate Software Bill of Materials (SBOM) in CycloneDX format.
             # This provides supply chain transparency and traceability for the built image.
