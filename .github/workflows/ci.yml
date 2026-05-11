@@ -105,7 +105,14 @@ jobs:
 
             - name: Run pip-audit
               run: |
-                  pip-audit -r web/requirements.txt || true
+                  pip-audit -r web/requirements.txt --output json > pip-audit-report.json || true
+
+            - name: Upload pip-audit report
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: pip-audit-report
+                  path: pip-audit-report.json
     
     sast-bandit:
         name: SAST with Bandit
