@@ -22,6 +22,7 @@ Audit logging (SR-06-B):
     'shared_download'   — user downloads a document shared with them
 """
 from flask import Blueprint, request, session, redirect, url_for, render_template, flash, send_from_directory, abort
+from markupsafe import escape
 
 from app.components.auth_session.decorators import login_required
 from app.components.authorization import service as authz_service
@@ -117,7 +118,10 @@ def upload_document():
         return redirect(url_for("documents.documents_page"))
     
     user_id = session.get("user_id")
-    title = request.form.get("title", "Untitled").strip()
+    
+    # Escape user-supplied title to prevent XSS before embedding in redirect URL
+    title = escape(request.form.get("title", "Untitled").strip())
+    
     uploaded_file = request.files.get("document")
 
     if not title or len(title) > 255:
@@ -215,8 +219,9 @@ def download_document(document_id):
 @document_bp.route("/documents/<int:document_id>/share", methods=["POST"])
 @login_required
 def share_document(document_id):
-    share_with_user_id = request.form.get("share_with_user_id")
     user_id = session.get("user_id")
+    
+    share_with_user_id = request.form.get("share_with_user_id", "").strip()
     
     if not share_with_user_id:
         flash("Please provide a user ID to share with.", "error")

@@ -20,6 +20,7 @@ def create_app(test_config=None):
 
     app.secret_key = SECRET_KEY
     app.config["UPLOAD_FOLDER"] = str(UPLOAD_FOLDER)
+    app.jinja_env.autoescape = True
     
     # Configure session management for authentication (Authentication & Session)
     session_config.configure_session(app)
