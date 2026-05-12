@@ -105,7 +105,14 @@ jobs:
 
             - name: Run pip-audit
               run: |
-                  pip-audit -r web/requirements.txt || true
+                  pip-audit -r web/requirements.txt --output json > pip-audit-report.json || true
+
+            - name: Upload pip-audit report
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: pip-audit-report
+                  path: pip-audit-report.json
     
     sast-bandit:
         name: SAST with Bandit
@@ -127,7 +134,14 @@ jobs:
 
             - name: Run Bandit
               run: |
-                  bandit -r . -x ./tests || true
+                  bandit -r . -x ./tests -f json -o bandit-report.json || true
+
+            - name: Upload Bandit report
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: bandit-report
+                  path: bandit-report.json
 
     secrets-scan:
         name: Secret Scanning with Gitleaks
@@ -209,7 +223,16 @@ jobs:
                   image-ref: ${{ env.WEB_SHA_TAG }}
                   vuln-type: os,library
                   severity: HIGH,CRITICAL
+                  format: sarif
+                  output: trivy-web.sarif
                   exit-code: 0
+
+            - name: Upload Trivy web report
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: trivy-web-report
+                  path: trivy-web.sarif
 
             # Generate Software Bill of Materials (SBOM) in CycloneDX format.
             # This provides supply chain transparency and traceability for the built image.
@@ -248,7 +271,16 @@ jobs:
                   image-ref: ${{ env.DB_SHA_TAG }}
                   vuln-type: os,library
                   severity: HIGH,CRITICAL
+                  format: sarif
+                  output: trivy-db.sarif
                   exit-code: 0
+
+            - name: Upload Trivy db report
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: trivy-db-report
+                  path: trivy-db.sarif
 
             # Generate Software Bill of Materials (SBOM) in CycloneDX format.
             # This provides supply chain transparency and traceability for the built image.
