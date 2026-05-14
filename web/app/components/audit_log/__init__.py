@@ -1,17 +1,16 @@
 """
-Data Access Layer (DAL) Component
-=================================
-Responsible for encapsulating all interactions with the PostgreSQL database,
-ensuring safe, isolated, and consistent data querying.
+Audit Log Component
+===================
+Centralised audit-logging service (SR-06 / AD-05).
 
-Responsibilities:
-- Execute database queries and data mutations.
-- Prevent SQL injection through strict parameterization.
-- Map database records to internal application structures cleanly.
+Provides three public functions, one per event category:
 
-Security relevance:
-- SR-05: Ensures the integrity of interactions using parameterized queries or a secure ORM in all database operations.
-- AD-04: Serves as the Secure Data Access Layer Encapsulating All Database Interactions.
+  log_auth_event(...)      — login success/failure, logout
+  log_document_event(...)  — upload, view, download, share
+  log_admin_event(...)     — enable/disable account, role change
+
+All writes go through dal.audit_log.insert_event so that the
+no-raw-SQL rule (SR-05) is respected throughout.
 """
 from .service import log_auth_event, log_document_event, log_admin_event
 
