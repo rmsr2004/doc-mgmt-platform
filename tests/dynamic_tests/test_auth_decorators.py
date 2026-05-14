@@ -12,6 +12,24 @@ import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 BASE_URL = os.environ.get("BASE_URL", "https://localhost")
+BASE_URL = os.environ.get("APP_BASE_URL", BASE_URL)
+
+
+def _login_as(username: str, password: str) -> requests.Session:
+    s = requests.Session()
+    s.verify = False
+    login_page = s.get(f"{BASE_URL}/login")
+    match = re.search(
+        r'<input[^>]*name=["\']csrf_token["\'][^>]*value=["\']([^"\']+)["\']',
+        login_page.text,
+    )
+    csrf = match.group(1) if match else ""
+    s.post(
+        f"{BASE_URL}/login",
+        data={"username": username, "password": password, "csrf_token": csrf},
+        allow_redirects=True,
+    )
+    return s
 
 PROTECTED_ENDPOINTS = [
     ("POST", "/documents/upload"),
@@ -71,3 +89,42 @@ class TestSR13:
 
         resp = s.get(f"{BASE_URL}/documents/upload", allow_redirects=False)
         assert resp.status_code != 302 or "/login" not in resp.headers.get("Location", "")
+
+
+def test_unauthenticated_access_documents_redirects():
+    """GET /documents with no session must redirect to /login."""
+    resp = requests.get(f"{BASE_URL}/documents", verify=False, allow_redirects=False)
+    assert resp.status_code == 302
+    assert "/login" in resp.headers.get("Location", "")
+
+
+def test_unauthenticated_access_admin_redirects():
+    """GET /admin/users with no session must redirect to /login."""
+    resp = requests.get(f"{BASE_URL}/admin/users", verify=False, allow_redirects=False)
+    assert resp.status_code == 302
+    assert "/login" in resp.headers.get("Location", "")
+
+
+def test_unauthenticated_upload_redirects():
+    """POST /documents/upload with no session must redirect to /login."""
+    resp = requests.post(f"{BASE_URL}/documents/upload", verify=False, allow_redirects=False)
+    assert resp.status_code == 302
+    assert "/login" in resp.headers.get("Location", "")
+
+
+def test_non_admin_cannot_access_admin():
+    """Authenticated non-admin GET /admin/users must be redirected away (not to /login)."""
+    s = _login_as("alice", "tth1mJj5?£58")
+    resp = s.get(f"{BASE_URL}/admin/users", allow_redirects=False)
+    assert resp.status_code == 302
+    assert "/login" not in resp.headers.get("Location", "")
+
+
+def test_no_cache_headers_on_protected_pages():
+    """Authenticated GET /documents must include Cache-Control: no-cache, no-store."""
+    s = _login_as("alice", "tth1mJj5?£58")
+    resp = s.get(f"{BASE_URL}/documents")
+    assert resp.status_code == 200
+    cache_control = resp.headers.get("Cache-Control", "")
+    assert "no-cache" in cache_control
+    assert "no-store" in cache_control
