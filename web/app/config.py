@@ -22,7 +22,7 @@ DB_NAME     = get_required_env("DB_NAME")
 
 SECRET_KEY     = get_required_env("SECRET_KEY")
 UPLOAD_FOLDER  = BASE_DIR / "uploads"
-UPLOAD_RATE_LIMIT  = "5 per minute"
+UPLOAD_RATE_LIMIT  = "20 per minute"
 
 LOCKOUT_THRESHOLD = 5
 LOCKOUT_DURATION  = timedelta(minutes=12)
