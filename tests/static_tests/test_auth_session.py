@@ -2,6 +2,10 @@ import re
 import time
 from datetime import datetime, timezone, timedelta
 from unittest.mock import patch
+import pytest
+
+from app.app import create_app
+from app.components.auth_session.auth_rate_limiter import init_auth_rate_limiter, limiter as _auth_limiter
 
 from app.app import create_app
 from app.components.auth_session.auth_rate_limiter import init_auth_rate_limiter
@@ -13,6 +17,17 @@ app.config.update({
     "RATELIMIT_ENABLED": False,
 })
 init_auth_rate_limiter(app)  # bind limiter to app so RATELIMIT_ENABLED=False is respected
+
+
+@pytest.fixture(autouse=True)
+def _disable_rate_limiter():
+    # Other test modules collected later call create_app(), which resets
+    # auth_limiter.enabled back to True via the shared singleton. This fixture
+    # guarantees the limiter stays off for every test in this module regardless
+    # of collection order.
+    _auth_limiter.enabled = False
+    yield
+    _auth_limiter.enabled = True
 
 ALICE = {"id": 2, "username": "alice", "password": "tth1mJj5?£58",
          "is_disabled": False, "locked_until": None}
