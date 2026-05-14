@@ -2,18 +2,18 @@ name: 3 - Continuous Deployment
 run-name: "${{ github.workflow }}"
 
 on:
-  workflow_call:
-    inputs:
-      image_tag:
-        description: "Image tag to deploy"
-        required: true
-        type: string
-        
-  workflow_dispatch:
-    inputs:
-      image_tag:
-        description: "Image tag to deploy (e.g., dev or a specific commit SHA)"
-        required: true
+    workflow_call:
+        inputs:
+            image_tag:
+                description: "Image tag to deploy"
+                required: true
+                type: string
+
+    workflow_dispatch:
+        inputs:
+            image_tag:
+                description: "Image tag to deploy (e.g., dev or a specific commit SHA)"
+                required: true
 
 permissions:
     contents: read
@@ -35,17 +35,21 @@ jobs:
 
             - name: Set lowercase image namespace
               env:
-                REPO_OWNER: ${{ github.repository_owner }}
+                  REPO_OWNER: ${{ github.repository_owner }}
               run: |
-                echo "IMAGE_NAMESPACE_LC=$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+                  echo "IMAGE_NAMESPACE_LC=$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
 
             - name: Resolve deployment images
               env:
-                INPUT_IMAGE_TAG: ${{ github.event.inputs.image_tag }}
+                  INPUT_IMAGE_TAG: ${{ github.event.inputs.image_tag }}
               run: |
-                echo "WEB_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE_LC }}/${{ env.WEB_IMAGE_NAME }}:$INPUT_IMAGE_TAG" >> "$GITHUB_ENV"
-                echo "DB_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE_LC }}/${{ env.DB_IMAGE_NAME }}:$INPUT_IMAGE_TAG" >> "$GITHUB_ENV"
+                  echo "WEB_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE_LC }}/${{ env.WEB_IMAGE_NAME }}:$INPUT_IMAGE_TAG" >> "$GITHUB_ENV"
+                  echo "DB_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE_LC }}/${{ env.DB_IMAGE_NAME }}:$INPUT_IMAGE_TAG" >> "$GITHUB_ENV"
 
+            - name: Show deployment target
+              run: |
+                  echo "Deploying WEB_IMAGE=$WEB_IMAGE"
+                  echo "Deploying DB_IMAGE=$DB_IMAGE"
             - name: Show deployment target
               run: |
                   echo "Deploying WEB_IMAGE=$WEB_IMAGE"
@@ -57,7 +61,17 @@ jobs:
                   registry: ghcr.io
                   username: ${{ github.actor }}
                   password: ${{ secrets.GITHUB_TOKEN }}
+            - name: Log in to GHCR
+              uses: docker/login-action@v4
+              with:
+                  registry: ghcr.io
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
 
+            - name: Pull deployment images
+              run: |
+                  docker pull "$WEB_IMAGE"
+                  docker pull "$DB_IMAGE"
             - name: Pull deployment images
               run: |
                   docker pull "$WEB_IMAGE"
@@ -94,17 +108,18 @@ jobs:
                           exit 1
                       fi
 
-                      echo "Waiting for application..."
-                      sleep 2
-                      elapsed=$((elapsed+2))
+                    echo "Waiting for application..."
+                    sleep 2
+                    elapsed=$((elapsed+2))
                   done
 
+                  echo "Application is ready"
                   echo "Application is ready"
 
             - name: Verify deployment health
               run: |
                   curl -f http://localhost:80/health
-                  
+
             - name: Promote deployed images to prod
               if: success() && github.event_name == 'workflow_dispatch'
               run: |
