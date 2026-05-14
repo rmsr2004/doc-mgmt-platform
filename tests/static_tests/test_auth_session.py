@@ -7,6 +7,9 @@ import pytest
 from app.app import create_app
 from app.components.auth_session.auth_rate_limiter import init_auth_rate_limiter, limiter as _auth_limiter
 
+from app.app import create_app
+from app.components.auth_session.auth_rate_limiter import init_auth_rate_limiter
+
 app = create_app()
 app.config.update({
     "TESTING": True,

@@ -49,6 +49,18 @@ def _get_user_id(admin_session: requests.Session, username: str) -> int:
     return next(u["id"] for u in resp.json() if u["username"] == username)
 
 
+def _get_user_id_from_admin_page(admin_session: requests.Session, username: str) -> int:
+    """Parse user ID from /admin/users HTML (includes the admin account)."""
+    page = admin_session.get(_url("/admin/users"))
+    match = re.search(
+        r'<td>(\d+)</td>\s*<td>' + re.escape(username) + r'</td>',
+        page.text,
+    )
+    if not match:
+        raise ValueError(f"User '{username}' not found on admin page")
+    return int(match.group(1))
+
+
 def test_admin_page_loads_for_admin():
     """Admin user can GET /admin/users and receives a 200 response."""
     admin = _login_as(ADMIN_USERNAME, ADMIN_PASSWORD)
@@ -122,6 +134,7 @@ def test_admin_cannot_toggle_self():
     """Admin receives an error when attempting to disable their own account."""
     admin = _login_as(ADMIN_USERNAME, ADMIN_PASSWORD)
     admin_id = _get_user_id(admin, ADMIN_USERNAME)
+    admin_id = _get_user_id_from_admin_page(admin, ADMIN_USERNAME)
 
     admin_page = admin.get(_url("/admin/users"))
     csrf = _csrf_token(admin_page.text)

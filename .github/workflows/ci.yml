@@ -21,6 +21,18 @@ jobs:
             - name: Checkout repository
               uses: actions/checkout@v6
 
+            - name: Create .env file from secrets
+              run: |
+                  cat > .env <<EOF
+                  SECRET_KEY=${{ secrets.SECRET_KEY }}
+                  DB_USER=${{ secrets.DB_USER }}
+                  DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+                  DB_HOST=${{ secrets.DB_HOST }}
+                  DB_PORT=${{ secrets.DB_PORT }}
+                  DB_NAME=${{ secrets.DB_NAME }}
+                  API_KEY=${{ secrets.API_KEY }}
+                  EOF
+
             - name: Start application stack for validation
               run: |
                   docker compose up -d --build
@@ -56,7 +68,7 @@ jobs:
 
             - name: Create log directory
               run: mkdir -p web/logs
-              
+
             - name: Install test dependencies
               run: |
                   python -m pip install --upgrade pip
@@ -84,6 +96,10 @@ jobs:
               if: always()
               run: |
                   docker compose down -v --remove-orphans
+                  
+            - name: Clean up .env
+              if: always()
+              run: rm -f .env
 
     sca:
         name: Software Composition Analysis
@@ -105,8 +121,15 @@ jobs:
 
             - name: Run pip-audit
               run: |
-                  pip-audit -r web/requirements.txt || true
-    
+                  pip-audit -r web/requirements.txt --output json > pip-audit-report.json || true
+
+            - name: Upload pip-audit report
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: pip-audit-report
+                  path: pip-audit-report.json
+
     sast-bandit:
         name: SAST with Bandit
         runs-on: ubuntu-latest
@@ -127,7 +150,14 @@ jobs:
 
             - name: Run Bandit
               run: |
-                  bandit -r . -x ./tests || true
+                  bandit -r . -x ./tests -f json -o bandit-report.json || true
+
+            - name: Upload Bandit report
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: bandit-report
+                  path: bandit-report.json
 
     secrets-scan:
         name: Secret Scanning with Gitleaks
@@ -175,8 +205,10 @@ jobs:
               uses: actions/checkout@v6
 
             - name: Set lowercase image namespace
+              env:
+                  REPO_OWNER: ${{ github.repository_owner }}
               run: |
-                  echo "IMAGE_NAMESPACE_LC=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+                  echo "IMAGE_NAMESPACE_LC=$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
 
             - name: Log in to GHCR
               uses: docker/login-action@v4
@@ -209,7 +241,16 @@ jobs:
                   image-ref: ${{ env.WEB_SHA_TAG }}
                   vuln-type: os,library
                   severity: HIGH,CRITICAL
+                  format: sarif
+                  output: trivy-web.sarif
                   exit-code: 0
+
+            - name: Upload Trivy web report
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: trivy-web-report
+                  path: trivy-web.sarif
 
             # Generate Software Bill of Materials (SBOM) in CycloneDX format.
             # This provides supply chain transparency and traceability for the built image.
@@ -248,7 +289,16 @@ jobs:
                   image-ref: ${{ env.DB_SHA_TAG }}
                   vuln-type: os,library
                   severity: HIGH,CRITICAL
+                  format: sarif
+                  output: trivy-db.sarif
                   exit-code: 0
+
+            - name: Upload Trivy db report
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: trivy-db-report
+                  path: trivy-db.sarif
 
             # Generate Software Bill of Materials (SBOM) in CycloneDX format.
             # This provides supply chain transparency and traceability for the built image.
@@ -269,4 +319,3 @@ jobs:
             - name: Push db image to GHCR
               run: |
                   docker push "${{ env.DB_SHA_TAG }}"
-
