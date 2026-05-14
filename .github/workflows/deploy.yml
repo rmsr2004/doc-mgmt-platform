@@ -1,7 +1,14 @@
-name: 4 - Continuous Deployment
+name: 3 - Continuous Deployment
 run-name: "${{ github.workflow }}"
 
 on:
+    workflow_call:
+        inputs:
+            image_tag:
+                description: "Image tag to deploy"
+                required: true
+                type: string
+
     workflow_dispatch:
         inputs:
             image_tag:
@@ -27,13 +34,17 @@ jobs:
               uses: actions/checkout@v6
 
             - name: Set lowercase image namespace
+              env:
+                  REPO_OWNER: ${{ github.repository_owner }}
               run: |
-                  echo "IMAGE_NAMESPACE_LC=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+                  echo "IMAGE_NAMESPACE_LC=$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
 
             - name: Resolve deployment images
+              env:
+                  INPUT_IMAGE_TAG: ${{ inputs.image_tag || github.sha }}
               run: |
-                  echo "WEB_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE_LC }}/${{ env.WEB_IMAGE_NAME }}:${{ github.event.inputs.image_tag }}" >> "$GITHUB_ENV"
-                  echo "DB_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE_LC }}/${{ env.DB_IMAGE_NAME }}:${{ github.event.inputs.image_tag }}" >> "$GITHUB_ENV"
+                  echo "WEB_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE_LC }}/${{ env.WEB_IMAGE_NAME }}:$INPUT_IMAGE_TAG" >> "$GITHUB_ENV"
+                  echo "DB_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE_LC }}/${{ env.DB_IMAGE_NAME }}:$INPUT_IMAGE_TAG" >> "$GITHUB_ENV"
 
             - name: Show deployment target
               run: |
@@ -55,6 +66,7 @@ jobs:
             - name: Stop existing deployment
               run: |
                   docker compose -f docker-compose.deploy.yml down || true
+
             - name: Create .env file from secrets
               run: |
                   cat > .env <<EOF
@@ -63,6 +75,7 @@ jobs:
                   DB_PASSWORD=${{ secrets.DB_PASSWORD }}
                   API_KEY=${{ secrets.API_KEY }}
                   EOF
+
             - name: Start deployment
               env:
                   WEB_IMAGE: ${{ env.WEB_IMAGE }}
@@ -73,27 +86,27 @@ jobs:
             - name: Wait for application
               run: |
                   timeout=120
-                  elapsed=0
+                    elapsed=0
+                    
+                    until curl -fsk https://localhost:443/health > /dev/null; do
+                        if [ "$elapsed" -ge "$timeout" ]; then
+                            echo "Application did not become ready within ${timeout}s"
+                            exit 1
+                        fi
 
-                  until curl -fs http://localhost:8000/health > /dev/null; do
-                    if [ "$elapsed" -ge "$timeout" ]; then
-                      echo "Application did not become ready within ${timeout}s"
-                      exit 1
-                    fi
+                        echo "Waiting for application..."
+                        sleep 2
+                        elapsed=$((elapsed+2))
+                    done
 
-                    echo "Waiting for application..."
-                    sleep 2
-                    elapsed=$((elapsed+2))
-                  done
-
-                  echo "Application is ready"
+                    echo "Application is ready"
 
             - name: Verify deployment health
               run: |
-                  curl -f http://localhost:8000/health
+                  curl -f http://localhost:80/health
 
             - name: Promote deployed images to prod
-              if: success()
+              if: success() && github.event_name == 'workflow_dispatch'
               run: |
                   docker tag "$WEB_IMAGE" "${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE_LC }}/${{ env.WEB_IMAGE_NAME }}:prod"
                   docker tag "$DB_IMAGE" "${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE_LC }}/${{ env.DB_IMAGE_NAME }}:prod"
@@ -103,7 +116,8 @@ jobs:
 
             - name: Clean up .env
               if: always()
-              run: rm -f .env
+              run: |
+                  rm -f .env
 
             - name: Show deployed container status on failure
               if: failure()
