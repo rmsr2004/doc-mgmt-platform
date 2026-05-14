@@ -1,22 +1,22 @@
 """
-auth_session/
--------------
-Implements AD-02: Dedicated authentication and session management component.
+Auth & Session Component
+========================
+Responsible for handling user authentication workflows, session lifecycle management,
+and core access protection mechanisms across the application.
 
-Responsible for:
-  - Session cookie security configuration (SR-02)
-  - Session lifecycle: login and logout (SR-13)
-  - Authentication enforcement on protected routes (SR-13)
-  - CSRF protection for state-changing operations (SR-11b, AD-02c)
-  - Route definitions for /login and /logout
+Responsibilities:
+- Authenticate users securely over encrypted channels.
+- Manage secure session state and lifecycle (login, logout, timeouts).
+- Apply rate limiting on authentication attempts to prevent brute-force attacks.
+- Defend against Cross-Site Request Forgery (CSRF).
 
-Modules:
-  - session_config.py    : Cookie security flags configuration (SR-02, SR-11a)
-  - session_lifecycle.py : Credential verification, login_user(), logout_user()
-  - decorators.py        : login_required and admin_required decorators (SR-13, SR-08)
-  - routes.py            : /login, /logout endpoints
-  - csrf.py              : CSRF token generation and rotation
-  - csrf_filter.py       : CSRF Filter at the Single Access Point (AD-02c, SR-11b)
+Security relevance:
+- SR-02: Protects user sessions by imposing HttpOnly and Secure flags on all authentication cookies.
+- SR-07: Applies rate limiting and temporary account lockout after a predefined number of failed authentication attempts.
+- SR-11: Implements anti-CSRF measures (strict SameSite cookies and/or tokens) for all state-changing operations.
+- SR-13: Authenticates all users before allowing access to protected resources, rejecting invalid, expired, or missing sessions.
+- AD-01: Acts as the primary check in the Single Access Point with Authorization Gateway.
+- AD-02: Dedicated Authentication and Session Management over Secure Channel.
+- AD-07: Availability Protection through Targeted Rate Limiting and Monitoring.
 """
-
 from .routes import auth_bp
