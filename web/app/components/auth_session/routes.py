@@ -16,7 +16,7 @@ from app.components.audit_log import log_auth_event
 auth_bp = Blueprint("auth_session", __name__)
 
 @auth_bp.route("/login", methods=["GET", "POST"])
-@auth_rate_limiter.limiter.limit("10 per minute")
+@auth_rate_limiter.limiter.limit("100 per minute")
 def login():
     error = request.args.get("error")
     if error:

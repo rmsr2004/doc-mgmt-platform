@@ -72,9 +72,11 @@ def test_upload_rate_limit_triggers_429():
 def test_login_rate_limit_triggers_429():
     """Rapid-fire POST /login (bad creds) must eventually return 429.
 
-    This test intentionally drains the nginx login burst bucket (burst=100,
-    rate=10r/m) and must therefore run last in the suite so that no other
-    test is affected.  Fire 120 requests — enough to exceed the burst of 100.
+    This test intentionally exhausts the Flask login rate limit (100/min,
+    keyed by IP) and the nginx burst bucket (burst=100, rate=10r/m).  It
+    must run last so no other test is starved.  The CI suite consumes ~70
+    of the 100 Flask slots; firing 120 requests here guarantees hitting the
+    remaining ~30 and triggering 429 well within the attempt budget.
     """
     s = requests.Session()
     s.verify = False
