@@ -15,14 +15,22 @@ from datetime import datetime, timezone, timedelta
 from unittest.mock import patch, MagicMock
 from flask import Flask
 
-from app.components.auth_session.auth_rate_limiter import limiter as auth_limiter, init_auth_rate_limiter
-from app.components.upload_guard.upload_rate_limiter import limiter as upload_limiter, init_upload_rate_limiter
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+from app.components.upload_guard.upload_rate_limiter import upload_rate_limit_key
 from app.components.auth_session.session_lifecycle import _is_account_locked, _get_remaining_minutes, _register_failed_attempt, _reset_lockout
 
 from app.config import LOCKOUT_DURATION, LOCKOUT_THRESHOLD
 
 MAX_UPLOAD_MB = 10
 MAX_CONTENT_LENGTH = MAX_UPLOAD_MB * 1024 * 1024  # 10 MB
+
+
+def _make_limiter(key_func=get_remote_address):
+    """Create a fresh Limiter per fixture to avoid singleton state bleed."""
+    lim = Limiter(key_func=key_func, storage_uri="memory://")
+    return lim
 
 
 # ===========================================================================
@@ -34,10 +42,11 @@ def auth_app():
     flask_app = Flask(__name__)
     flask_app.secret_key = "test-secret"
     flask_app.config["TESTING"] = True
-    init_auth_rate_limiter(flask_app)
+    lim = _make_limiter()
+    lim.init_app(flask_app)
 
     @flask_app.route("/login", methods=["GET", "POST"])
-    @auth_limiter.limit("10 per minute")
+    @lim.limit("10 per minute")
     def mock_login():
         return "ok", 200
 
@@ -48,10 +57,11 @@ def upload_app():
     flask_app = Flask(__name__)
     flask_app.secret_key = "test-secret"
     flask_app.config["TESTING"] = True
-    init_upload_rate_limiter(flask_app)
+    lim = _make_limiter(key_func=upload_rate_limit_key)
+    lim.init_app(flask_app)
 
     @flask_app.route("/documents/upload", methods=["POST"])
-    @upload_limiter.limit("5 per minute")
+    @lim.limit("5 per minute")
     def mock_upload():
         return "ok", 200
 
@@ -63,8 +73,8 @@ def file_size_app():
     flask_app.secret_key = "test-secret"
     flask_app.config["TESTING"] = True
     flask_app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_LENGTH
-
-    init_upload_rate_limiter(flask_app)
+    lim = _make_limiter(key_func=upload_rate_limit_key)
+    lim.init_app(flask_app)
 
     @flask_app.route("/documents/upload", methods=["POST"])
     def mock_upload():
@@ -88,6 +98,16 @@ def file_size_app():
 @pytest.fixture
 def file_size_client(file_size_app):
     return file_size_app.test_client()
+
+@pytest.fixture
+def rate_limit_pair():
+    """Returns (flask_app, lim) for TestRateLimitEnforcement tests."""
+    flask_app = Flask(__name__)
+    flask_app.secret_key = "test-secret"
+    flask_app.config["TESTING"] = True
+    lim = _make_limiter(key_func=upload_rate_limit_key)
+    lim.init_app(flask_app)
+    return flask_app, lim
 
 
 def make_file(size_bytes: int, filename="test.pdf") -> dict:
@@ -224,14 +244,15 @@ class TestUploadRateLimit:
 
 class TestRateLimitEnforcement:
 
-    def test_requests_within_limit_pass(self, file_size_app):
+    def test_requests_within_limit_pass(self, rate_limit_pair):
+        flask_app, lim = rate_limit_pair
 
-        @file_size_app.route("/test-rl-pass", methods=["POST"])
-        @upload_limiter.limit("5 per minute")
+        @flask_app.route("/test-rl-pass", methods=["POST"])
+        @lim.limit("5 per minute")
         def route_pass():
             return "ok", 200
 
-        with file_size_app.test_client() as c:
+        with flask_app.test_client() as c:
             with c.session_transaction() as sess:
                 sess["user_id"] = 10
 
@@ -239,14 +260,15 @@ class TestRateLimitEnforcement:
                 r = c.post("/test-rl-pass")
                 assert r.status_code == 200, f"Request {i+1} devia passar"
 
-    def test_excess_request_returns_429(self, file_size_app):
+    def test_excess_request_returns_429(self, rate_limit_pair):
+        flask_app, lim = rate_limit_pair
 
-        @file_size_app.route("/test-rl-block", methods=["POST"])
-        @upload_limiter.limit("3 per minute")
+        @flask_app.route("/test-rl-block", methods=["POST"])
+        @lim.limit("3 per minute")
         def route_block():
             return "ok", 200
 
-        with file_size_app.test_client() as c:
+        with flask_app.test_client() as c:
             with c.session_transaction() as sess:
                 sess["user_id"] = 20
 
@@ -256,33 +278,35 @@ class TestRateLimitEnforcement:
             r = c.post("/test-rl-block")
             assert r.status_code == 429
 
-    def test_different_users_have_independent_limits(self, file_size_app):
+    def test_different_users_have_independent_limits(self, rate_limit_pair):
+        flask_app, lim = rate_limit_pair
 
-        @file_size_app.route("/test-rl-indep", methods=["POST"])
-        @upload_limiter.limit("2 per minute")
+        @flask_app.route("/test-rl-indep", methods=["POST"])
+        @lim.limit("2 per minute")
         def route_indep():
             return "ok", 200
 
-        with file_size_app.test_client() as ca:
+        with flask_app.test_client() as ca:
             with ca.session_transaction() as sess:
                 sess["user_id"] = 30
             ca.post("/test-rl-indep")
             ca.post("/test-rl-indep")
             assert ca.post("/test-rl-indep").status_code == 429
 
-        with file_size_app.test_client() as cb:
+        with flask_app.test_client() as cb:
             with cb.session_transaction() as sess:
                 sess["user_id"] = 31
             assert cb.post("/test-rl-indep").status_code == 200
 
-    def test_unauthenticated_limit_applies_per_ip(self, file_size_app):
+    def test_unauthenticated_limit_applies_per_ip(self, rate_limit_pair):
+        flask_app, lim = rate_limit_pair
 
-        @file_size_app.route("/test-rl-ip", methods=["POST"])
-        @upload_limiter.limit("2 per minute")
+        @flask_app.route("/test-rl-ip", methods=["POST"])
+        @lim.limit("2 per minute")
         def route_ip():
             return "ok", 200
 
-        with file_size_app.test_client() as c:
+        with flask_app.test_client() as c:
             for _ in range(2):
                 c.post("/test-rl-ip", environ_base={"REMOTE_ADDR": "5.5.5.5"})
             r = c.post("/test-rl-ip", environ_base={"REMOTE_ADDR": "5.5.5.5"})
