@@ -1,5 +1,5 @@
 """
-audit_log component
+Audit Log Component
 ===================
 Centralised audit-logging service (SR-06 / AD-05).
 
@@ -12,7 +12,6 @@ Provides three public functions, one per event category:
 All writes go through dal.audit_log.insert_event so that the
 no-raw-SQL rule (SR-05) is respected throughout.
 """
-
 from .service import log_auth_event, log_document_event, log_admin_event
 
 __all__ = ["log_auth_event", "log_document_event", "log_admin_event"]
