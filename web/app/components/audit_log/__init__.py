@@ -13,3 +13,6 @@ Security relevance:
 - SR-05: Ensures the integrity of interactions using parameterized queries or a secure ORM in all database operations.
 - AD-04: Serves as the Secure Data Access Layer Encapsulating All Database Interactions.
 """
+from .service import log_auth_event, log_document_event, log_admin_event
+
+__all__ = ["log_auth_event", "log_document_event", "log_admin_event"]
