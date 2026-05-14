@@ -1,14 +1,18 @@
-# Upload Guard
-# ============
-# Entry-point security component for the Upload Service.
-#
-# Architectural Decision addressed:
-#   - AD-03c : Enforce upload rate limiting
-#
-# Security Requirements supported:
-#   - SR-09b : Enforce upload request frequency limits per authenticated user
-#
-# Note:
-#   File size enforcement (SR-09a) is handled by the nginx configuration, not by this component.
-#
+
+"""
+Upload Guard Component
+======================
+Responsible for throttling and enforcing capacity constraints on incoming
+file uploads to preserve system availability.
+
+Responsibilities:
+- Apply strict rate limits to file upload endpoints per user or IP.
+- Work in conjunction with web server settings to enforce maximum file size limits.
+
+Security relevance:
+- SR-09: Restricts the frequency of uploads per authenticated user.
+- AD-03: Forms the throttling stage of the Hardened Document Upload Pipeline.
+- AD-07: Contributes to Availability Protection through Targeted Rate Limiting.
+"""
+
 from .upload_rate_limiter import limiter, init_upload_rate_limiter

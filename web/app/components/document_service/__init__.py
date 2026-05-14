@@ -17,15 +17,14 @@ Responsibilities:
 - Support secure storage and retrieval of uploaded files.
 
 Security relevance:
-- Supports SR-01: owner/reviewer-only document access.
-- Supports SR-04: upload validation by MIME type and extension.
-- Supports SR-10: filename normalization and path confinement.
-- Supports SR-09: works in conjunction with rate limiting for file uploads.
-- Works with the Authorization Gateway / Guard Door to prevent
-  unauthorized document access (AD-01).
-- Implements the Hardened Document Upload Pipeline preventing malicious file execution (AD-03).
-- Must never perform raw SQL directly; all persistence is delegated
-  to the DAL (AD-04 / SR-05).
+- SR-01: Grants access to a document only if the user is the designated owner or an explicitly authorized reviewer.
+- SR-04: Validates server integrity strictly through a predefined allowlist of MIME types and extensions.
+- SR-05: Ensures integrity of database interactions using parameterized queries via the DAL.
+- SR-09: Imposes a maximum file size limit and restricts the frequency of uploads per authenticated user.
+- SR-10: Normalizes all uploaded filenames to prevent directory traversal and confines storage paths to a designated root.
+- AD-01: Integrates with the Authorization Gateway to prevent unauthorized access.
+- AD-03: Implements the Hardened Document Upload Pipeline (validation, isolation, throttling).
+- AD-04: Relies on the Secure Data Access Layer to encapsulate all database interactions.
 
 Architecture role:
 This component represents the Document Service shown in the system
