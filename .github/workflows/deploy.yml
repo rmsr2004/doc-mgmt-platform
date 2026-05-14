@@ -41,7 +41,7 @@ jobs:
 
             - name: Resolve deployment images
               env:
-                  INPUT_IMAGE_TAG: ${{ github.event.inputs.image_tag }}
+                  INPUT_IMAGE_TAG: ${{ inputs.image_tag || github.sha }}
               run: |
                   echo "WEB_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE_LC }}/${{ env.WEB_IMAGE_NAME }}:$INPUT_IMAGE_TAG" >> "$GITHUB_ENV"
                   echo "DB_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE_LC }}/${{ env.DB_IMAGE_NAME }}:$INPUT_IMAGE_TAG" >> "$GITHUB_ENV"
