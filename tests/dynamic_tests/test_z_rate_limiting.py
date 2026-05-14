@@ -1,11 +1,3 @@
-"""
-Dynamic integration tests for rate limiting (SR-07 / AD-07b).
-Run against a live deployed instance at https://localhost:443.
-
-This file is named test_z_rate_limiting.py so that pytest collects it last.
-The login rate-limit test deliberately drains the nginx burst bucket; running
-it last means no other test is affected by the depleted bucket.
-"""
 import io
 import os
 import re
@@ -53,8 +45,8 @@ def test_upload_rate_limit_triggers_429():
     s = _login_as("admin", "L|fP1D%327mB")
     csrf = _csrf_token(s.get(_url("/documents")).text)
     status_codes = []
-    # Flask upload limit is 5/min per user; fire up to 10 to guarantee hitting it
-    for _ in range(10):
+    # Flask upload limit is 20/min per user; fire up to 25 to guarantee hitting it
+    for _ in range(25):
         resp = s.post(
             _url("/documents/upload"),
             data={"title": "RateLimitProbe", "csrf_token": csrf},

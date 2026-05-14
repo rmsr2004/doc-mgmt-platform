@@ -133,7 +133,6 @@ def test_enable_user_flow():
 def test_admin_cannot_toggle_self():
     """Admin receives an error when attempting to disable their own account."""
     admin = _login_as(ADMIN_USERNAME, ADMIN_PASSWORD)
-    admin_id = _get_user_id(admin, ADMIN_USERNAME)
     admin_id = _get_user_id_from_admin_page(admin, ADMIN_USERNAME)
 
     admin_page = admin.get(_url("/admin/users"))
