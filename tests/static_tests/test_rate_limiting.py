@@ -34,6 +34,7 @@ def auth_app():
     flask_app = Flask(__name__)
     flask_app.secret_key = "test-secret"
     flask_app.config["TESTING"] = True
+    flask_app.config["RATELIMIT_ENABLED"] = True
     init_auth_rate_limiter(flask_app)
 
     @flask_app.route("/login", methods=["GET", "POST"])
@@ -48,6 +49,7 @@ def upload_app():
     flask_app = Flask(__name__)
     flask_app.secret_key = "test-secret"
     flask_app.config["TESTING"] = True
+    flask_app.config["RATELIMIT_ENABLED"] = True
     init_upload_rate_limiter(flask_app)
 
     @flask_app.route("/documents/upload", methods=["POST"])
@@ -63,6 +65,7 @@ def file_size_app():
     flask_app.secret_key = "test-secret"
     flask_app.config["TESTING"] = True
     flask_app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_LENGTH
+    flask_app.config["RATELIMIT_ENABLED"] = True
 
     init_upload_rate_limiter(flask_app)
 
