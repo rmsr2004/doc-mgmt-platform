@@ -11,6 +11,7 @@ COPY run.py .
 COPY app/ ./app/
 COPY static/ ./static/
 COPY templates/ ./templates/
+COPY .env .
 
 EXPOSE 8000
 
