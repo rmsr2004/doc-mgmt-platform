@@ -14,10 +14,20 @@ jobs:
     name: 1 - Continuous Integration
     uses: ./.github/workflows/ci.yml
     secrets: inherit
+    
   cd:
     name: 2 - Continuous Delivery
     needs: ci
     uses: ./.github/workflows/cd.yml
+    with:
+      image_tag: ${{ github.sha }}
+    secrets: inherit
+
+  deploy:
+    name: 3 - Continuous Deployment
+    if: github.base_ref == 'main'
+    needs: cd
+    uses: ./.github/workflows/deploy.yml
     with:
       image_tag: ${{ github.sha }}
     secrets: inherit
