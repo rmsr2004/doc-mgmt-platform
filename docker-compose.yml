@@ -15,6 +15,8 @@ services:
     
   web:
     build: ./web
+    env_file:
+      - .env
     environment:
       - AUDIT_LOG_DIR=/var/log/docmgmtplatform
       - FLASK_DEBUG=true
