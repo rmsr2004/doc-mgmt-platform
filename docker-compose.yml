@@ -28,8 +28,6 @@ services:
     networks:
       - private_flask
       - private_db
-    cap_add:
-      - NET_ADMIn
 
   db:
     build: ./db
@@ -37,8 +35,6 @@ services:
       - pgdata:/var/lib/postgresql/data
     networks:
       - private_db
-    cap_add:
-      - NET_ADMIN
 
 volumes:
   pgdata:
