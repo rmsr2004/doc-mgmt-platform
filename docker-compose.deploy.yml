@@ -50,6 +50,27 @@ services:
       retries: 30
     networks:
       - private_db
+<<<<<<< HEAD
+=======
+  
+  netshoot-flask:
+    image: nicolaka/netshoot
+    command: sleep infinity
+    networks:
+      - private_flask
+
+  netshoot-db:
+    image: nicolaka/netshoot
+    command: sleep infinity
+    networks:
+      - private_db
+
+  netshoot-public:
+    image: nicolaka/netshoot
+    command: sleep infinity
+    networks:
+      - public
+>>>>>>> origin/main
 
 volumes:
   pgdata:
