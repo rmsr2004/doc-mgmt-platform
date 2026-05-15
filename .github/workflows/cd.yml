@@ -1,0 +1,163 @@
+name: cd
+
+on:
+    workflow_call:
+        inputs:
+            image_tag:
+                description: "Immutable image tag to validate"
+                required: true
+                type: string
+
+permissions:
+    contents: read
+    packages: write
+
+env:
+    REGISTRY: ghcr.io
+    IMAGE_NAMESPACE: ${{ github.repository_owner }}
+    WEB_IMAGE_NAME: secure-doc-platform-web
+    DB_IMAGE_NAME: secure-doc-platform-db
+
+jobs:
+    deliver:
+        if: ${{ success() }}
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v6
+
+            - name: Set lowercase image namespace
+              env:
+                  REPO_OWNER: ${{ github.repository_owner }}
+              run: |
+                  echo "IMAGE_NAMESPACE_LC=$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+
+            - name: Resolve image tag
+              env:
+                  INPUT_IMAGE_TAG: ${{ inputs.image_tag }}
+              run: |
+                echo "IMAGE_TAG=$INPUT_IMAGE_TAG" >> "$GITHUB_ENV"
+
+            - name: Log in to GHCR
+              uses: docker/login-action@v4
+              with:
+                  registry: ghcr.io
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Export deployment image references
+              run: |
+                  echo "WEB_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE_LC }}/${{ env.WEB_IMAGE_NAME }}:${IMAGE_TAG}" >> "$GITHUB_ENV"
+                  echo "DB_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE_LC }}/${{ env.DB_IMAGE_NAME }}:${IMAGE_TAG}" >> "$GITHUB_ENV"
+
+            - name: Pull deliverable images
+              run: |
+                  docker pull "$WEB_IMAGE"
+                  docker pull "$DB_IMAGE"
+            - name: Create .env file from secrets
+              run: |
+                  cat > .env <<EOF
+                  SECRET_KEY=${{ secrets.SECRET_KEY }}
+                  DB_USER=${{ secrets.DB_USER }}
+                  DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+                  DB_HOST=${{ secrets.DB_HOST }}
+                  DB_PORT=${{ secrets.DB_PORT }}
+                  DB_NAME=${{ secrets.DB_NAME }}
+                  API_KEY=${{ secrets.API_KEY }}
+                  POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+                  POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+                  POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+                  EOF
+
+            - name: Start delivery environment
+              env:
+                  WEB_IMAGE: ${{ env.WEB_IMAGE }}
+                  DB_IMAGE: ${{ env.DB_IMAGE }}
+              run: |
+                  docker compose -f docker-compose.deploy.yml up -d
+
+            - name: Wait for application
+              run: |
+                  timeout=120
+                  elapsed=0
+
+                  until curl -fsk https://localhost:443/health > /dev/null; do
+                    if [ "$elapsed" -ge "$timeout" ]; then
+                      echo "Application did not become ready within ${timeout}s"
+                      exit 1
+                    fi
+
+                    echo "Waiting for application... (${elapsed}s)"
+                    sleep 2
+                    elapsed=$((elapsed+2))
+                  done
+
+                  echo "Application is ready"
+
+            - name: Verify application health
+              run: |
+                  curl -f http://localhost:80/health
+
+            - name: Set up Python
+              uses: actions/setup-python@v6
+              with:
+                  python-version: "3.11"
+
+            - name: Install test dependencies
+              run: |
+                  python -m pip install --upgrade pip
+                  pip install -r web/requirements.txt
+                  pip install pytest requests
+
+            - name: Run dynamic API security tests
+              env:
+                  APP_BASE_URL: https://localhost:443
+              run: |
+                  pytest -q tests/dynamic_tests --ignore tests/dynamic_tests/test_network_segmentation.py
+                  pytest -q tests/dynamic_tests/test_network_segmentation.py
+
+            - name: Run OWASP ZAP baseline scan
+              uses: zaproxy/action-baseline@v0.14.0
+              continue-on-error: true
+              with:
+                  target: "https://localhost:443"
+                  allow_issue_writing: false
+
+            - name: Upload ZAP baseline report
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: zap-baseline-report
+                  path: zap-report/zap-baseline-report.html
+
+            - name: Promote validated images to dev
+              if: success()
+              run: |
+                  docker tag "$WEB_IMAGE" "${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE_LC }}/${{ env.WEB_IMAGE_NAME }}:dev"
+                  docker tag "$DB_IMAGE" "${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE_LC }}/${{ env.DB_IMAGE_NAME }}:dev"
+
+                  docker push "${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE_LC }}/${{ env.WEB_IMAGE_NAME }}:dev"
+                  docker push "${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE_LC }}/${{ env.DB_IMAGE_NAME }}:dev"
+
+            - name: Save container logs
+              if: always()
+              run: |
+                  docker compose -f docker-compose.deploy.yml logs > deploy-container-logs.txt
+
+            - name: Upload container logs
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: cd-container-logs
+                  path: deploy-container-logs.txt
+                  retention-days: 7
+
+            - name: Stop delivery environment
+              if: always()
+              run: |
+                  docker compose -f docker-compose.deploy.yml down -v --remove-orphans
+
+            - name: Clean up .env
+              if: always()
+              run: rm -f .env

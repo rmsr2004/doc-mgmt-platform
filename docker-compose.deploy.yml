@@ -1,17 +1,86 @@
 services:
+  nginx-web:
+    image: nginx:latest
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - web
+    restart: always
+    volumes:
+      - ./web/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./web/nginx/certs:/etc/nginx/certs:ro
+    networks:
+      - public
+      - private_flask
+
   web:
     image: ${WEB_IMAGE}
-    ports:
-      - "8000:8000"
+    env_file:
+      - .env
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    volumes:
+      - audit_logs:/var/log/docmgmtplatform
+      - ./web/app:/app/app
+      - ./web/static:/app/static
+      - ./web/templates:/app/templates
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\" || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks:
+      - private_flask
+      - private_db
 
   db:
     image: ${DB_IMAGE}
     volumes:
       - pgdata:/var/lib/postgresql/data
     restart: unless-stopped
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d docdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks:
+      - private_db
+  
+  netshoot-flask:
+    image: nicolaka/netshoot
+    command: sleep infinity
+    networks:
+      - private_flask
+
+  netshoot-db:
+    image: nicolaka/netshoot
+    command: sleep infinity
+    networks:
+      - private_db
+
+  netshoot-public:
+    image: nicolaka/netshoot
+    command: sleep infinity
+    networks:
+      - public
 
 volumes:
   pgdata:
+  audit_logs:
+
+networks:
+  public:
+    driver: bridge
+  
+  private_flask:
+    driver: bridge
+    internal: true
+
+  private_db:
+    driver: bridge
+    internal: true

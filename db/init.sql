@@ -1,25 +1,31 @@
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    username TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    is_disabled BOOLEAN DEFAULT FALSE
-);
+CREATE TABLE
+    users (
+        id SERIAL PRIMARY KEY,
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        is_disabled BOOLEAN DEFAULT FALSE,
+        failed_attempts INTEGER NOT NULL DEFAULT 0,
+        locked_until TIMESTAMP DEFAULT NULL
+    );
 
-CREATE TABLE documents (
-    id SERIAL PRIMARY KEY,
-    owner_id INTEGER REFERENCES users(id),
-    title TEXT NOT NULL,
-    filename TEXT NOT NULL,
-    metadata TEXT,
-    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+CREATE TABLE
+    documents (
+        id SERIAL PRIMARY KEY,
+        owner_id INTEGER REFERENCES users (id),
+        title TEXT NOT NULL,
+        filename TEXT NOT NULL,
+        uuid_filename TEXT NOT NULL,
+        metadata TEXT,
+        uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
 
-CREATE TABLE document_shares (
-    id SERIAL PRIMARY KEY,
-    document_id INTEGER REFERENCES documents(id),
-    shared_with INTEGER REFERENCES users(id)
-);
-
+CREATE TABLE
+    document_shares (
+        id SERIAL PRIMARY KEY,
+        document_id INTEGER REFERENCES documents (id),
+        shared_with INTEGER REFERENCES users (id)
+    );
+    
 -- ---------------------------------------------------------------------------
 -- IMPORTANT — VALIDATOR ACCOUNTS
 --
@@ -52,7 +58,9 @@ CREATE TABLE document_shares (
 --
 -- Removing or altering these accounts will cause automated validation to fail.
 -- ---------------------------------------------------------------------------
-INSERT INTO users (username, password, is_disabled) VALUES
-('admin', 'L|fP1D%327mB', FALSE),
-('alice', 'tth1mJj5?£58', FALSE),
-('bob', 'De586:Iq6}?!', FALSE);
+INSERT INTO
+    users (username, password, is_disabled)
+VALUES
+    ('admin', 'L|fP1D%327mB', FALSE),
+    ('alice', 'tth1mJj5?£58', FALSE),
+    ('bob', 'De586:Iq6}?!', FALSE);

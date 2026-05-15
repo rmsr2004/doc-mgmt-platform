@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block content %}
+<p id="title-preview" class="muted"></p>
+<section class="grid">
+    <div class="card full-width">
+        <h2>Documents</h2>
+        <p class="muted">Showing documents shared with user id: {{ requested_user_id }}</p>
+        {% if documents %}
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Title</th>
+                    <th>Filename</th>
+                    <th></th>
+                    <th>Summary</th>
+                    <th>Full</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for doc in documents %}
+                <tr>
+                    <td>{{ doc.id }}</td>
+                    <td>{{ doc.title }}</td>
+                    <td>{{ doc.filename }}</td>
+                    <td>
+                        <a href="{{ url_for('documents.download_shared_document', document_id=doc.id) }}">
+                            <i data-lucide="file-down"></i>
+                        </a>
+                    </td>
+                    <td>
+                        <button class="details-btn" data-title="{{ doc.title }}">
+                            Summary
+                        </button>
+                    </td>
+                    <td>
+                        <a href="{{ url_for('documents.document_details', document_id=doc.id) }}">
+                            Details
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div id="doc-details" class="card" style="display:none;">
+            <h3>Document details</h3>
+            <p id="doc-title"></p>
+        </div>
+        {% else %}
+        <p>No documents found.</p>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+
+<script>
+    const modal = document.getElementById("share-modal");
+    const form = document.getElementById("share-form");
+    const closeBtn = document.getElementById("close-modal");
+    const select = document.getElementById("modal-username");
+
+    document.querySelectorAll(".share-btn").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            e.preventDefault();
+
+            const docId = btn.dataset.docId;
+
+            document.getElementById("modal-doc-id").value = docId;
+            document.getElementById("modal-doc-title").textContent = btn.dataset.docTitle;
+            document.getElementById("share-form").action = `/documents/${docId}/share`;
+            select.innerHTML = '<option value="" disabled selected>Loading...</option>';
+
+            fetch("/users")
+                .then(r => r.json())
+                .then(users => {
+                    select.innerHTML = '<option value="" disabled selected>Select a user...</option>';
+                    users.forEach(u => {
+                        const opt = document.createElement("option");
+                        opt.value = u.id;
+                        opt.textContent = u.username;
+                        select.appendChild(opt);
+                    });
+                })
+                .catch(() => {
+                    select.innerHTML = '<option disabled>Failed to load users</option>';
+                });
+
+            modal.showModal();
+        });
+    });
+
+    closeBtn.addEventListener("click", () => modal.close());
+
+    modal.addEventListener("click", (e) => {
+        if (e.target === modal) modal.close();
+    });
+</script>
+{% endblock %}

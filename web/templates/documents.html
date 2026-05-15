@@ -2,60 +2,154 @@
 {% block content %}
 <p id="title-preview" class="muted"></p>
 <section class="grid">
-  <div class="card">
-    <h2>Upload document</h2>
-    <form method="post" action="{{ url_for('upload_document') }}" enctype="multipart/form-data">
-      <label>Title</label>
-      <input type="text" name="title" required>
+    <div class="card">
+        <h2>Upload document</h2>
+        <form method="post" action="{{ url_for('documents.upload_document') }}" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <label>Title</label>
+            <input type="text" name="title" required>
 
-      <label>File</label>
-      <input type="file" name="document" required>
+            <label>File</label>
+            <input type="file" name="document" required>
 
-      <button type="submit">Upload</button>
-    </form>
-  </div>
+            <button type="submit">Upload</button>
+        </form>
 
-  <div class="card">
-    <h2>Documents</h2>
-    <p class="muted">Showing documents for user id: {{ requested_user_id }}</p>
-    {% if documents %}
-    <table>
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Title</th>
-          <th>Filename</th>
-          <th>Summary</th>
-          <th>Full</th>
-        </tr>
-      </thead>
-      <tbody>
-      {% for doc in documents %}
-        <tr>
-          <td>{{ doc.id }}</td>
-          <td>{{ doc.title }}</td>
-          <td>{{ doc.filename }}</td>
-          <td>
-            <button class="details-btn" data-title="{{ doc.title }}">
-              Summary
-            </button>
-          </td>
-        <td>
-          <a href="{{ url_for('document_details', document_id=doc.id) }}">
-            Details
-          </a>
-        </td>
-        </tr>
-      {% endfor %}
-      </tbody>
-    </table>
+        <h2>Shared Documents</h2>
+        <button id="view-shared-btn">
+            <a href="{{ url_for('documents.shared_documents_page') }}">
+                List shared documents with me
+            </a>
+        </button>
+        
+    </div>
+
+    <div class="card">
+        <h2>Documents</h2>
+        <p class="muted">Showing documents for user id: {{ requested_user_id }}</p>
+        {% if documents %}
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Title</th>
+                    <th>Filename</th>
+                    <th></th>
+                    <th></th>
+                    <th>Summary</th>
+                    <th>Full</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for doc in documents %}
+                <tr>
+                    <td>{{ doc.id }}</td>
+                    <td>{{ doc.title }}</td>
+                    <td>{{ doc.filename }}</td>
+                    <td>
+                        <a href="#" class="share-btn" data-doc-id="{{ doc.id }}" data-doc-title="{{ doc.title }}"
+                            aria-label="Share {{ doc.title }}">
+                            <i data-lucide="share"></i>
+                        </a>
+                    </td>
+                    <td>
+                        <a href="{{ url_for('documents.download_document', document_id=doc.id) }}">
+                            <i data-lucide="file-down"></i>
+                        </a>
+                    </td>
+                    <td>
+                        <button class="details-btn" data-title="{{ doc.title }}">
+                            Summary
+                        </button>
+                    </td>
+                    <td>
+                        <a href="{{ url_for('documents.document_details', document_id=doc.id) }}">
+                            Details
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <dialog id="share-modal">
+            <form method="post" id="share-form" action="">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="document_id" id="modal-doc-id">
+
+                <h3>Share document</h3>
+                <p class="muted" id="modal-doc-title"></p>
+
+                <label>Share with</label>
+                <select name="share_with_user_id" id="modal-username" required>
+                    <option value="" disabled selected>Select a user...</option>
+                    {% for user in users %}
+                    {% if user.id != session.user_id %}
+                    <option value="{{ user.id }}">{{ user.username }}</option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+
+                <div style="display:flex; gap:0.5rem; margin-top:0.75rem;">
+                    <button type="submit">Share</button>
+                    <button type="button" id="close-modal">Cancel</button>
+                </div>
+            </form>
+        </dialog>
+
         <div id="doc-details" class="card" style="display:none;">
-  <h3>Document details</h3>
-  <p id="doc-title"></p>
-</div>
-    {% else %}
-      <p>No documents found.</p>
-    {% endif %}
-  </div>
+            <h3>Document details</h3>
+            <p id="doc-title"></p>
+        </div>
+        {% else %}
+        <p>No documents found.</p>
+        {% endif %}
+    </div>
 </section>
+{% endblock %}
+
+{% block scripts %}
+
+<script>
+    const modal = document.getElementById("share-modal");
+    const form = document.getElementById("share-form");
+    const closeBtn = document.getElementById("close-modal");
+    const select = document.getElementById("modal-username");
+
+    document.querySelectorAll(".share-btn").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            e.preventDefault();
+
+            const docId = btn.dataset.docId;
+
+            document.getElementById("modal-doc-id").value = docId;
+            document.getElementById("modal-doc-title").textContent = btn.dataset.docTitle;
+            document.getElementById("share-form").action = `/documents/${docId}/share`;
+            select.innerHTML = '<option value="" disabled selected>Loading...</option>';
+
+            fetch("/documents/users")
+                .then(r => r.json())
+                .then(users => {
+                    select.innerHTML = '<option value="" disabled selected>Select a user...</option>';
+                    users.forEach(u => {
+                        const opt = document.createElement("option");
+                        opt.value = u.id;
+                        opt.textContent = u.username;
+                        select.appendChild(opt);
+                    });
+                })
+                .catch(() => {
+                    select.innerHTML = '<option disabled>Failed to load users</option>';
+                });
+
+            modal.showModal();
+        });
+    });
+
+    closeBtn.addEventListener("click", () => modal.close());
+
+    modal.addEventListener("click", (e) => {
+        if (e.target === modal) modal.close();
+    });
+</script>
 {% endblock %}

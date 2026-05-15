@@ -1,0 +1,324 @@
+name: ci
+
+on:
+    workflow_call:
+
+permissions:
+    contents: read
+    packages: write
+
+env:
+    REGISTRY: ghcr.io
+    IMAGE_NAMESPACE: ${{ github.repository_owner }}
+    WEB_IMAGE_NAME: secure-doc-platform-web
+    DB_IMAGE_NAME: secure-doc-platform-db
+
+jobs:
+    test:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v6
+
+            - name: Create .env file from secrets
+              run: |
+                  cat > .env <<EOF
+                  SECRET_KEY=${{ secrets.SECRET_KEY }}
+                  DB_USER=${{ secrets.DB_USER }}
+                  DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+                  DB_HOST=${{ secrets.DB_HOST }}
+                  DB_PORT=${{ secrets.DB_PORT }}
+                  DB_NAME=${{ secrets.DB_NAME }}
+                  API_KEY=${{ secrets.API_KEY }}
+                  POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+                  POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+                  POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+                  EOF
+
+            - name: Start application stack for validation
+              run: |
+                  docker compose up -d --build
+
+            - name: Wait for application
+              run: |
+                  timeout=120
+                  elapsed=0
+
+                  until curl -fsk https://localhost:443/health > /dev/null; do
+                    if [ "$elapsed" -ge "$timeout" ]; then
+                      echo "Application did not become ready within ${timeout}s"
+                      exit 1
+                    fi
+
+                    echo "Waiting for application... (${elapsed}s)"
+                    sleep 2
+                    elapsed=$((elapsed+2))
+                  done
+
+                  HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:80/health)
+                  if [ "$HTTP_STATUS" != "301" ] && [ "$HTTP_STATUS" != "308" ]; then
+                    echo "Expected HTTP redirect, got ${HTTP_STATUS}"
+                    exit 1
+                  fi
+
+                  echo "Application is ready"
+
+            - name: Set up Python
+              uses: actions/setup-python@v6
+              with:
+                  python-version: "3.11"
+
+            - name: Create log directory
+              run: mkdir -p web/logs
+
+            - name: Install test dependencies
+              run: |
+                  python -m pip install --upgrade pip
+                  pip install -r web/requirements.txt
+                  pip install pytest requests
+
+            - name: Run smoke tests
+              run: |
+                  pytest -q tests/static_tests
+
+            - name: Save container logs
+              if: always()
+              run: |
+                  docker compose logs > container-logs.txt
+
+            - name: Upload container logs
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: ci-container-logs
+                  path: container-logs.txt
+                  retention-days: 7
+
+            - name: Stop stack
+              if: always()
+              run: |
+                  docker compose down -v --remove-orphans
+
+            - name: Clean up .env
+              if: always()
+              run: rm -f .env
+
+    sca:
+        name: Software Composition Analysis
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v6
+
+            - name: Set up Python
+              uses: actions/setup-python@v6
+              with:
+                  python-version: "3.10"
+
+            - name: Install dependencies and pip-audit
+              run: |
+                  pip install -r web/requirements.txt
+                  pip install pip-audit
+
+            - name: Run pip-audit
+              run: |
+                  pip-audit -r web/requirements.txt --output json > pip-audit-report.json || true
+
+            - name: Upload pip-audit report
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: pip-audit-report
+                  path: pip-audit-report.json
+
+    sast-bandit:
+        name: SAST with Bandit
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v6
+
+            - name: Set up Python
+              uses: actions/setup-python@v6
+              with:
+                  python-version: "3.10"
+
+            - name: Install Bandit
+              run: |
+                  python -m pip install --upgrade pip
+                  pip install bandit
+
+            - name: Run Bandit
+              run: |
+                  bandit -r . -x ./tests -f json -o bandit-report.json || true
+
+            - name: Upload Bandit report
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: bandit-report
+                  path: bandit-report.json
+
+    secrets-scan:
+        name: Secret Scanning with Gitleaks
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v6
+              with:
+                  fetch-depth: 0 # Fetch full history for accurate secret scanning
+
+            - name: Install Gitleaks
+              run: |
+                  GITLEAKS_VERSION=8.30.1
+                  curl -sSL -o /tmp/gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION#v}_linux_x64.tar.gz"
+                  tar -xzf /tmp/gitleaks.tar.gz -C /tmp
+                  sudo install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks
+
+            - name: Run Gitleaks scan
+              run: |
+                  gitleaks detect \
+                    --source . \
+                    --redact \
+                    --verbose \
+                    --report-format json \
+                    --report-path gitleaks-report.json \
+                    --exit-code 1 || true
+
+            - name: Upload Gitleaks report
+              uses: actions/upload-artifact@v4
+              with:
+                  name: gitleaks-report
+                  path: gitleaks-report.json
+
+    build-and-push:
+        needs:
+            - test
+            - sca
+            - sast-bandit
+            - secrets-scan
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v6
+
+            - name: Set lowercase image namespace
+              env:
+                  REPO_OWNER: ${{ github.repository_owner }}
+              run: |
+                  echo "IMAGE_NAMESPACE_LC=$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+
+            - name: Log in to GHCR
+              uses: docker/login-action@v4
+              with:
+                  registry: ghcr.io
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Set image tags
+              run: |
+                  echo "WEB_SHA_TAG=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE_LC }}/${{ env.WEB_IMAGE_NAME }}:${{ github.sha }}" >> "$GITHUB_ENV"
+                  echo "DB_SHA_TAG=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE_LC }}/${{ env.DB_IMAGE_NAME }}:${{ github.sha }}" >> "$GITHUB_ENV"
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v4
+
+            # Build locally first so Trivy can inspect the exact image before it is published.
+            - name: Build web image locally
+              uses: docker/build-push-action@v7
+              with:
+                  context: ./web
+                  push: false
+                  load: true
+                  tags: ${{ env.WEB_SHA_TAG }}
+                  provenance: false
+
+            - name: Scan web image with Trivy
+              uses: aquasecurity/trivy-action@v0.36.0
+              with:
+                  image-ref: ${{ env.WEB_SHA_TAG }}
+                  vuln-type: os,library
+                  severity: HIGH,CRITICAL
+                  format: sarif
+                  output: trivy-web.sarif
+                  exit-code: 0
+
+            - name: Upload Trivy web report
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: trivy-web-report
+                  path: trivy-web.sarif
+
+            # Generate Software Bill of Materials (SBOM) in CycloneDX format.
+            # This provides supply chain transparency and traceability for the built image.
+            - name: Generate SBOM for web image
+              uses: anchore/sbom-action@v0.16.1
+              with:
+                  image: ${{ env.WEB_SHA_TAG }}
+                  format: cyclonedx-json
+                  output-file: sbom-web.cyclonedx.json
+
+            - name: Upload web image SBOM
+              uses: actions/upload-artifact@v4
+              with:
+                  name: sbom-web
+                  path: sbom-web.cyclonedx.json
+              # Store SBOM as workflow artifact for compliance and auditing
+
+            # Only push after the vulnerability scan and SBOM generation pass.
+            - name: Push web image to GHCR
+              run: |
+                  docker push "${{ env.WEB_SHA_TAG }}"
+
+            # Repeat the same build-scan-sbom-push flow for the database image.
+            - name: Build db image locally
+              uses: docker/build-push-action@v7
+              with:
+                  context: ./db
+                  push: false
+                  load: true
+                  tags: ${{ env.DB_SHA_TAG }}
+                  provenance: false
+
+            - name: Scan db image with Trivy
+              uses: aquasecurity/trivy-action@v0.36.0
+              with:
+                  image-ref: ${{ env.DB_SHA_TAG }}
+                  vuln-type: os,library
+                  severity: HIGH,CRITICAL
+                  format: sarif
+                  output: trivy-db.sarif
+                  exit-code: 0
+
+            - name: Upload Trivy db report
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: trivy-db-report
+                  path: trivy-db.sarif
+
+            # Generate Software Bill of Materials (SBOM) in CycloneDX format.
+            # This provides supply chain transparency and traceability for the built image.
+            - name: Generate SBOM for db image
+              uses: anchore/sbom-action@v0.16.1
+              with:
+                  image: ${{ env.DB_SHA_TAG }}
+                  format: cyclonedx-json
+                  output-file: sbom-db.cyclonedx.json
+
+            - name: Upload db image SBOM
+              uses: actions/upload-artifact@v4
+              with:
+                  name: sbom-db
+                  path: sbom-db.cyclonedx.json
+              # Store SBOM as workflow artifact for compliance and auditing
+
+            - name: Push db image to GHCR
+              run: |
+                  docker push "${{ env.DB_SHA_TAG }}"
