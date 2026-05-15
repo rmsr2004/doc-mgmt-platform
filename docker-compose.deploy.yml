@@ -40,9 +40,6 @@ services:
     image: ${DB_IMAGE}
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./web/app:/app/app
-      - ./web/static:/app/static
-      - ./web/templates:/app/templates
     restart: unless-stopped
     env_file:
       - .env
