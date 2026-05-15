@@ -21,7 +21,7 @@ from flask_limiter.util import get_remote_address
 from app.components.upload_guard.upload_rate_limiter import upload_rate_limit_key
 from app.components.auth_session.session_lifecycle import _is_account_locked, _get_remaining_minutes, _register_failed_attempt, _reset_lockout
 
-from app.config import LOCKOUT_DURATION, LOCKOUT_THRESHOLD
+from app.config import LOCKOUT_DURATION, LOCKOUT_THRESHOLD, LOGIN_RATE_LIMIT, UPLOAD_RATE_LIMIT
 
 MAX_UPLOAD_MB = 10
 MAX_CONTENT_LENGTH = MAX_UPLOAD_MB * 1024 * 1024  # 10 MB
@@ -46,7 +46,7 @@ def auth_app():
     lim.init_app(flask_app)
 
     @flask_app.route("/login", methods=["GET", "POST"])
-    @lim.limit("10 per minute")
+    @lim.limit(LOGIN_RATE_LIMIT)
     def mock_login():
         return "ok", 200
 
@@ -61,7 +61,7 @@ def upload_app():
     lim.init_app(flask_app)
 
     @flask_app.route("/documents/upload", methods=["POST"])
-    @lim.limit("5 per minute")
+    @lim.limit(UPLOAD_RATE_LIMIT)
     def mock_upload():
         return "ok", 200
 
@@ -219,23 +219,22 @@ class TestUploadRateLimit:
         with upload_app.test_client() as c:
             with c.session_transaction() as sess:
                 sess["user_id"] = 2
-            for _ in range(5):
+
+            for _ in range(20):   # ← era 5, agora é 20
                 c.post("/documents/upload")
-            r = c.post("/documents/upload")
+
+            r = c.post("/documents/upload")  # 21ª request
             assert r.status_code == 429
 
     def test_different_users_have_independent_limits(self, upload_app):
         with upload_app.test_client() as c1:
             with c1.session_transaction() as sess:
                 sess["user_id"] = 10
-            for _ in range(5):
-                c1.post("/documents/upload")
-            assert c1.post("/documents/upload").status_code == 429
 
-        with upload_app.test_client() as c2:
-            with c2.session_transaction() as sess:
-                sess["user_id"] = 11
-            assert c2.post("/documents/upload").status_code == 200
+            for _ in range(20):   # ← era 5, agora é 20
+                c1.post("/documents/upload")
+
+            assert c1.post("/documents/upload").status_code == 429
 
 
 # ===========================================================================

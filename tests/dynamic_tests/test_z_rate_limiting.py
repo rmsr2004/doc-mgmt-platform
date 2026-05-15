@@ -6,6 +6,8 @@ import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+from .headers import RATE_LIMIT_HEADERS as headers
+
 BASE_URL = os.getenv("APP_BASE_URL", "https://localhost:443")
 
 _PDF_MAGIC = b"%PDF-1.4\n"
@@ -25,12 +27,13 @@ def _csrf_token(html: str) -> str:
 def _login_as(username: str, password: str) -> requests.Session:
     s = requests.Session()
     s.verify = False
-    login_page = s.get(_url("/login"))
+    login_page = s.get(_url("/login"), headers=headers)
     csrf = _csrf_token(login_page.text)
     s.post(
         _url("/login"),
         data={"username": username, "password": password, "csrf_token": csrf},
         allow_redirects=True,
+        headers=headers,
     )
     return s
 
@@ -43,7 +46,7 @@ def test_upload_rate_limit_triggers_429():
     """
     # admin has not uploaded in any other test, so its counter is fresh
     s = _login_as("admin", "L|fP1D%327mB")
-    csrf = _csrf_token(s.get(_url("/documents")).text)
+    csrf = _csrf_token(s.get(_url("/documents"), headers=headers).text)
     status_codes = []
     # Flask upload limit is 20/min per user; fire up to 25 to guarantee hitting it
     for _ in range(25):
@@ -52,6 +55,7 @@ def test_upload_rate_limit_triggers_429():
             data={"title": "RateLimitProbe", "csrf_token": csrf},
             files={"document": ("probe.pdf", io.BytesIO(_PDF_MAGIC), "application/pdf")},
             allow_redirects=False,
+            headers=headers,
         )
         status_codes.append(resp.status_code)
         if resp.status_code == 429:
@@ -78,6 +82,7 @@ def test_login_rate_limit_triggers_429():
             _url("/login"),
             data={"username": "nobody", "password": "wrong"},
             allow_redirects=False,
+            headers=headers,
         )
         status_codes.append(resp.status_code)
         if resp.status_code == 429:

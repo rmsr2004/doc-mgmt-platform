@@ -15,6 +15,8 @@ import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+from .headers import NO_RATE_LIMIT_HEADERS as headers
+
 BASE_URL = os.environ.get("BASE_URL", "https://localhost")
 
 
@@ -31,7 +33,7 @@ def get_session_with_csrf() -> tuple[requests.Session, str]:
     s = requests.Session()
     s.verify = False
 
-    resp = s.get(f"{BASE_URL}/login")
+    resp = s.get(f"{BASE_URL}/login", headers=headers)
     assert resp.status_code == 200
 
     # Extract CSRF token from the hidden input in the HTML response
@@ -55,7 +57,7 @@ def login() -> tuple[requests.Session, str]:
         "username": "admin",
         "password": "L|fP1D%327mB",
         "csrf_token": token,
-    }, allow_redirects=True)
+    }, allow_redirects=True, headers=headers)
 
     # Extract the new CSRF token from the rendered page
     match = re.search(
@@ -73,7 +75,7 @@ def login() -> tuple[requests.Session, str]:
 class TestSR11a:
     def test_session_cookie_has_samesite_strict(self):
         """SR-11a: session cookie must carry SameSite=Strict."""
-        resp = requests.get(f"{BASE_URL}/login", verify=False)
+        resp = requests.get(f"{BASE_URL}/login", verify=False, headers=headers)
         set_cookie = resp.headers.get("Set-Cookie", "")
         assert "SameSite=Strict" in set_cookie, (
             f"SameSite=Strict not found in Set-Cookie: {set_cookie}"
@@ -81,7 +83,7 @@ class TestSR11a:
 
     def test_session_cookie_has_httponly(self):
         """SR-02 / SR-11a: HttpOnly flag must be set."""
-        resp = requests.get(f"{BASE_URL}/login", verify=False)
+        resp = requests.get(f"{BASE_URL}/login", verify=False, headers=headers)
         set_cookie = resp.headers.get("Set-Cookie", "")
         assert "HttpOnly" in set_cookie, (
             f"HttpOnly not found in Set-Cookie: {set_cookie}"
@@ -95,7 +97,7 @@ class TestSR11a:
 class TestSR11b:
     def test_csrf_token_present_in_login_form(self):
         """SR-11b: login form must contain a csrf_token hidden field."""
-        resp = requests.get(f"{BASE_URL}/login", verify=False)
+        resp = requests.get(f"{BASE_URL}/login", verify=False, headers=headers)
         assert resp.status_code == 200
         match = re.search(
             r'<input[^>]*name=["\']csrf_token["\']',
@@ -110,6 +112,7 @@ class TestSR11b:
             f"{BASE_URL}/documents/1/share",
             data={"share_with_user_id": 2},  # no csrf_token
             allow_redirects=False,
+            headers=headers,
         )
         assert resp.status_code == 403
 
@@ -120,6 +123,7 @@ class TestSR11b:
             f"{BASE_URL}/documents/1/share",
             data={"csrf_token": "totally-wrong-token", "share_with_user_id": 2},
             allow_redirects=False,
+            headers=headers,
         )
         assert resp.status_code == 403
 
@@ -130,12 +134,13 @@ class TestSR11b:
             f"{BASE_URL}/documents/1/share",
             data={"csrf_token": token, "share_with_user_id": 2},
             allow_redirects=False,
+            headers=headers,
         )
         assert resp.status_code != 403
 
     def test_get_request_does_not_require_csrf(self):
         """Safe methods (GET) must never be blocked by the CSRF filter."""
-        resp = requests.get(f"{BASE_URL}/health", verify=False)
+        resp = requests.get(f"{BASE_URL}/health", verify=False, headers=headers)
         assert resp.status_code == 200
 
 
@@ -151,6 +156,7 @@ class TestAD02c:
             f"{BASE_URL}/documents/1/share",
             data={"reviewer_id": 2},
             allow_redirects=False,
+            headers=headers,
         )
         assert resp.status_code == 403
 
@@ -161,6 +167,7 @@ class TestAD02c:
             f"{BASE_URL}/admin/users/2/toggle",
             data={},
             allow_redirects=False,
+            headers=headers,
         )
         assert resp.status_code == 403
 
@@ -177,5 +184,6 @@ class TestAD02c:
                 "reviewer_id": 2,
             },
             allow_redirects=False,
+            headers=headers,
         )
         assert resp.status_code != 403
