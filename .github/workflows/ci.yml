@@ -31,6 +31,9 @@ jobs:
                   DB_PORT=${{ secrets.DB_PORT }}
                   DB_NAME=${{ secrets.DB_NAME }}
                   API_KEY=${{ secrets.API_KEY }}
+                  POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+                  POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+                  POSTGRES_DB=${{ secrets.POSTGRES_DB }}
                   EOF
 
             - name: Start application stack for validation
@@ -96,7 +99,7 @@ jobs:
               if: always()
               run: |
                   docker compose down -v --remove-orphans
-                  
+
             - name: Clean up .env
               if: always()
               run: rm -f .env

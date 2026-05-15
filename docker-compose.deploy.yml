@@ -23,6 +23,9 @@ services:
         condition: service_healthy
     volumes:
       - audit_logs:/var/log/docmgmtplatform
+      - ./web/app:/app/app
+      - ./web/static:/app/static
+      - ./web/templates:/app/templates
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\" || exit 1"]
@@ -37,10 +40,9 @@ services:
     image: ${DB_IMAGE}
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./web/app:/app/app
-      - ./web/static:/app/static
-      - ./web/templates:/app/templates
     restart: unless-stopped
+    env_file:
+      - .env
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d docdb"]
       interval: 5s
