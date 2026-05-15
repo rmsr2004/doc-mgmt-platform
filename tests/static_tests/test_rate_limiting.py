@@ -220,10 +220,10 @@ class TestUploadRateLimit:
             with c.session_transaction() as sess:
                 sess["user_id"] = 2
 
-            for _ in range(20):   # ← era 5, agora é 20
+            for _ in range(20):
                 c.post("/documents/upload")
 
-            r = c.post("/documents/upload")  # 21ª request
+            r = c.post("/documents/upload")
             assert r.status_code == 429
 
     def test_different_users_have_independent_limits(self, upload_app):
@@ -231,7 +231,7 @@ class TestUploadRateLimit:
             with c1.session_transaction() as sess:
                 sess["user_id"] = 10
 
-            for _ in range(20):   # ← era 5, agora é 20
+            for _ in range(20):
                 c1.post("/documents/upload")
 
             assert c1.post("/documents/upload").status_code == 429
