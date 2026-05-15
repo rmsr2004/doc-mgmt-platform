@@ -6,6 +6,8 @@ import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+from .headers import NO_RATE_LIMIT_HEADERS as headers
+
 BASE_URL = os.getenv("APP_BASE_URL", "https://localhost:443")
 
 _PDF_MAGIC = b"%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n"
@@ -23,12 +25,13 @@ def _csrf_token(html: str) -> str:
 def _login_as(username: str, password: str) -> requests.Session:
     session = requests.Session()
     session.verify = False
-    login_page = session.get(f"{BASE_URL}/login")
+    login_page = session.get(f"{BASE_URL}/login", headers=headers)
     csrf = _csrf_token(login_page.text)
     session.post(
         f"{BASE_URL}/login",
         data={"username": username, "password": password, "csrf_token": csrf},
         allow_redirects=True,
+        headers=headers,
     )
     return session
 
@@ -40,9 +43,9 @@ def _upload(
     content_type: str,
     title: str = "Test",
 ) -> requests.Response:
-    docs_page = session.get(f"{BASE_URL}/documents")
+    docs_page = session.get(f"{BASE_URL}/documents", headers=headers)
     csrf = _csrf_token(docs_page.text)
-    kwargs: dict = {"data": {"title": title, "csrf_token": csrf}, "allow_redirects": True}
+    kwargs: dict = {"data": {"title": title, "csrf_token": csrf}, "allow_redirects": True, "headers": headers}
     if filename is not None:
         kwargs["files"] = {"document": (filename, io.BytesIO(content), content_type)}
     return session.post(f"{BASE_URL}/documents/upload", **kwargs)

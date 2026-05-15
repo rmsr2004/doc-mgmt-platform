@@ -12,11 +12,12 @@ from flask import Blueprint, request, flash, render_template, redirect, url_for,
 
 from . import session_lifecycle, auth_rate_limiter
 from app.components.audit_log import log_auth_event
+from app.config import LOGIN_RATE_LIMIT
 
 auth_bp = Blueprint("auth_session", __name__)
 
 @auth_bp.route("/login", methods=["GET", "POST"])
-@auth_rate_limiter.limiter.limit("100 per minute")
+@auth_rate_limiter.limiter.limit(LOGIN_RATE_LIMIT)
 def login():
     error = request.args.get("error")
     if error:
