@@ -5,6 +5,8 @@ import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+from .headers import NO_RATE_LIMIT_HEADERS as headers
+
 BASE_URL = os.environ.get("BASE_URL", "https://localhost")
 
 def login(username, password):
@@ -12,7 +14,7 @@ def login(username, password):
     session = requests.Session()
     session.verify = False
     
-    resp = session.get(f"{BASE_URL}/login")
+    resp = session.get(f"{BASE_URL}/login", headers=headers)
     match = re.search(
         r'<input[^>]*name=["\']csrf_token["\'][^>]*value=["\']([^"\']+)["\']',
         resp.text,
@@ -26,13 +28,14 @@ def login(username, password):
             "password": password,
             "csrf_token": csrf_token,
         },
-        allow_redirects=False
+        allow_redirects=False,
+        headers=headers
     )
     return session, csrf_token
 
 def test_unauthenticated_user_cannot_access_documents():
     """Test that a missing session redirects to login or denies access."""
-    response = requests.get(f"{BASE_URL}/documents", verify=False, allow_redirects=False)
+    response = requests.get(f"{BASE_URL}/documents", verify=False, allow_redirects=False, headers=headers)
     assert response.status_code in (302, 401, 403)
 
 def test_user_cannot_access_another_users_document():
@@ -40,10 +43,10 @@ def test_user_cannot_access_another_users_document():
     bob_session, _ = login("bob", "De586:Iq6}?!")
     
     # Assuming Document 1 exists and belongs to someone else (e.g., alice or admin)
-    response = bob_session.get(f"{BASE_URL}/documents/1", allow_redirects=False)
+    response = bob_session.get(f"{BASE_URL}/documents/1", allow_redirects=False, headers=headers)
     assert response.status_code in (302, 403, 404)
 
-    response_dl = bob_session.get(f"{BASE_URL}/documents/1/download", allow_redirects=False)
+    response_dl = bob_session.get(f"{BASE_URL}/documents/1/download", allow_redirects=False, headers=headers)
     assert response_dl.status_code in (302, 403, 404)
 
 def test_user_cannot_share_another_users_document():
@@ -53,6 +56,7 @@ def test_user_cannot_share_another_users_document():
     response = bob_session.post(
         f"{BASE_URL}/documents/1/share",
         data={"csrf_token": bob_csrf, "share_with_user_id": 1},
-        allow_redirects=False
+        allow_redirects=False,
+        headers=headers
     )
     assert response.status_code in (403, 404, 302)

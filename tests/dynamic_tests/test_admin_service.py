@@ -8,6 +8,8 @@ import requests
 import warnings
 from urllib3.exceptions import InsecureRequestWarning
 
+from .headers import NO_RATE_LIMIT_HEADERS as headers
+
 warnings.filterwarnings("ignore", category=InsecureRequestWarning)
 
 BASE_URL = os.getenv("APP_BASE_URL", "https://localhost:443")
@@ -18,7 +20,6 @@ USER_USERNAME = "alice"
 USER_PASSWORD = "tth1mJj5?£58"
 BOB_USERNAME = "bob"
 BOB_PASSWORD = "De586:Iq6}?!"
-
 
 def _url(path: str) -> str:
     return BASE_URL.rstrip("/") + "/" + path.lstrip("/")
@@ -34,24 +35,25 @@ def _csrf_token(html: str) -> str:
 def _login_as(username: str, password: str) -> requests.Session:
     s = requests.Session()
     s.verify = False
-    login_page = s.get(_url("/login"))
+    login_page = s.get(_url("/login"), headers=headers)
     csrf = _csrf_token(login_page.text)
     s.post(
         _url("/login"),
         data={"username": username, "password": password, "csrf_token": csrf},
         allow_redirects=True,
+        headers=headers,
     )
     return s
 
 
 def _get_user_id(admin_session: requests.Session, username: str) -> int:
-    resp = admin_session.get(_url("/documents/users"))
+    resp = admin_session.get(_url("/documents/users"), headers=headers)
     return next(u["id"] for u in resp.json() if u["username"] == username)
 
 
 def _get_user_id_from_admin_page(admin_session: requests.Session, username: str) -> int:
     """Parse user ID from /admin/users HTML (includes the admin account)."""
-    page = admin_session.get(_url("/admin/users"))
+    page = admin_session.get(_url("/admin/users"), headers=headers)
     match = re.search(
         r'<td>(\d+)</td>\s*<td>' + re.escape(username) + r'</td>',
         page.text,
@@ -64,14 +66,14 @@ def _get_user_id_from_admin_page(admin_session: requests.Session, username: str)
 def test_admin_page_loads_for_admin():
     """Admin user can GET /admin/users and receives a 200 response."""
     admin = _login_as(ADMIN_USERNAME, ADMIN_PASSWORD)
-    resp = admin.get(_url("/admin/users"), timeout=10)
+    resp = admin.get(_url("/admin/users"), timeout=10, headers=headers)
     assert resp.status_code == 200
 
 
 def test_admin_page_denied_for_regular_user():
     """Non-admin authenticated user is redirected away from GET /admin/users."""
     user = _login_as(USER_USERNAME, USER_PASSWORD)
-    resp = user.get(_url("/admin/users"), allow_redirects=False, timeout=10)
+    resp = user.get(_url("/admin/users"), allow_redirects=False, timeout=10, headers=headers)
     assert resp.status_code == 302
     assert "/login" not in resp.headers.get("Location", "")
 
@@ -81,26 +83,27 @@ def test_disable_user_flow():
     admin = _login_as(ADMIN_USERNAME, ADMIN_PASSWORD)
     bob_id = _get_user_id(admin, BOB_USERNAME)
 
-    admin_page = admin.get(_url("/admin/users"))
+    admin_page = admin.get(_url("/admin/users"), headers=headers)
     csrf = _csrf_token(admin_page.text)
-    admin.post(_url(f"/admin/users/{bob_id}/disable"), data={"csrf_token": csrf})
+    admin.post(_url(f"/admin/users/{bob_id}/disable"), data={"csrf_token": csrf}, headers=headers)
 
     try:
         s = requests.Session()
         s.verify = False
-        login_page = s.get(_url("/login"))
+        login_page = s.get(_url("/login"), headers=headers)
         csrf = _csrf_token(login_page.text)
         resp = s.post(
             _url("/login"),
             data={"username": BOB_USERNAME, "password": BOB_PASSWORD, "csrf_token": csrf},
             allow_redirects=True,
+            headers=headers,
         )
         assert resp.status_code in (200, 403)
         assert "Account is disabled" in resp.text
     finally:
-        admin_page = admin.get(_url("/admin/users"))
+        admin_page = admin.get(_url("/admin/users"), headers=headers)
         csrf = _csrf_token(admin_page.text)
-        admin.post(_url(f"/admin/users/{bob_id}/enable"), data={"csrf_token": csrf})
+        admin.post(_url(f"/admin/users/{bob_id}/enable"), data={"csrf_token": csrf}, headers=headers)
 
 
 def test_enable_user_flow():
@@ -109,23 +112,24 @@ def test_enable_user_flow():
     bob_id = _get_user_id(admin, BOB_USERNAME)
 
     # Setup: disable bob first
-    admin_page = admin.get(_url("/admin/users"))
+    admin_page = admin.get(_url("/admin/users"), headers=headers)
     csrf = _csrf_token(admin_page.text)
-    admin.post(_url(f"/admin/users/{bob_id}/disable"), data={"csrf_token": csrf})
+    admin.post(_url(f"/admin/users/{bob_id}/disable"), data={"csrf_token": csrf}, headers=headers)
 
     # Re-enable bob
-    admin_page = admin.get(_url("/admin/users"))
+    admin_page = admin.get(_url("/admin/users"), headers=headers)
     csrf = _csrf_token(admin_page.text)
-    admin.post(_url(f"/admin/users/{bob_id}/enable"), data={"csrf_token": csrf})
+    admin.post(_url(f"/admin/users/{bob_id}/enable"), data={"csrf_token": csrf}, headers=headers)
 
     s = requests.Session()
     s.verify = False
-    login_page = s.get(_url("/login"))
+    login_page = s.get(_url("/login"), headers=headers)
     csrf = _csrf_token(login_page.text)
     resp = s.post(
         _url("/login"),
         data={"username": BOB_USERNAME, "password": BOB_PASSWORD, "csrf_token": csrf},
         allow_redirects=False,
+        headers=headers,
     )
     assert resp.status_code in (302, 303)
 
@@ -135,13 +139,14 @@ def test_admin_cannot_toggle_self():
     admin = _login_as(ADMIN_USERNAME, ADMIN_PASSWORD)
     admin_id = _get_user_id_from_admin_page(admin, ADMIN_USERNAME)
 
-    admin_page = admin.get(_url("/admin/users"))
+    admin_page = admin.get(_url("/admin/users"), headers=headers)
     csrf = _csrf_token(admin_page.text)
     resp = admin.post(
         _url(f"/admin/users/{admin_id}/disable"),
         data={"csrf_token": csrf},
         allow_redirects=True,
         timeout=10,
+        headers=headers,
     )
     assert resp.status_code == 200
     assert "cannot disable your own account" in resp.text.lower()

@@ -1,3 +1,5 @@
+import os
+
 from flask import session
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -15,4 +17,5 @@ limiter = Limiter(
 )
 
 def init_upload_rate_limiter(app):
+    app.config["RATELIMIT_ENABLED"] = os.getenv("RATELIMIT_ENABLED", "true").lower() == "true"
     limiter.init_app(app)
