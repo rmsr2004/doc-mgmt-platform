@@ -37,7 +37,7 @@ jobs:
               env:
                   INPUT_IMAGE_TAG: ${{ inputs.image_tag }}
               run: |
-                echo "IMAGE_TAG=$INPUT_IMAGE_TAG" >> "$GITHUB_ENV"
+                  echo "IMAGE_TAG=$INPUT_IMAGE_TAG" >> "$GITHUB_ENV"
 
             - name: Log in to GHCR
               uses: docker/login-action@v4
@@ -124,33 +124,6 @@ jobs:
               with:
                   target: "https://localhost:443"
                   allow_issue_writing: false
-
-            - name: Upload ZAP baseline report
-              if: always()
-              uses: actions/upload-artifact@v4
-              with:
-                  name: zap-baseline-report
-                  path: zap-report/zap-baseline-report.html
-
-            - name: Run dynamic API security test
-              env:
-                  APP_BASE_URL: https://localhost:443
-              run: |
-                  pytest -q tests/test_sr_12h_dynamic_api_security.py
-
-            - name: Run OWASP ZAP baseline scan
-              uses: zaproxy/action-baseline@v0.14.0
-              continue-on-error: true
-              run: |
-                  mkdir -p zap-report
-                  docker run --rm \
-                    --add-host host.docker.internal:host-gateway \
-                    -v "${{ github.workspace }}/zap-report:/zap/wrk" \
-                    owasp/zap2docker-stable \
-                    zap-baseline.py \
-                      -t https://host.docker.internal:443 \
-                      -r zap-baseline-report.html \
-                      -z "-config connection.sslVerify=false"
 
             - name: Upload ZAP baseline report
               if: always()
