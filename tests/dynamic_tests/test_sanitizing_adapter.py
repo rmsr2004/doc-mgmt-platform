@@ -8,6 +8,8 @@ import pytest
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+from .headers import NO_RATE_LIMIT_HEADERS as headers
+
 BASE_URL = os.getenv("APP_BASE_URL", "https://localhost:443")
 
 def _url(path: str) -> str:
@@ -32,7 +34,7 @@ def _wait_for_service(timeout: int = 30) -> bool:
     s.verify = False
     while time.time() < deadline:
         try:
-            resp = s.get(BASE_URL.rstrip("/") + "/health", timeout=3)
+            resp = s.get(BASE_URL.rstrip("/") + "/health", timeout=3, headers=headers)
             if resp.status_code == 200:
                 return True
         except requests.RequestException:
@@ -57,7 +59,7 @@ def _upload_document(filename: str):
     login_response = None
     for attempt in range(1, max_attempts + 1):
         try:
-            login_page = session.get(_url("/login"), timeout=10)
+            login_page = session.get(_url("/login"), timeout=10, headers=headers)
             login_csrf = _csrf_token(login_page.text)
             login_response = session.post(
                 _url("/login"),
@@ -68,6 +70,7 @@ def _upload_document(filename: str):
                 },
                 allow_redirects=False,
                 timeout=10,
+                headers=headers,
             )
             if login_response.status_code == 429:
                 # rate limited — backoff and retry
@@ -86,7 +89,7 @@ def _upload_document(filename: str):
     upload_response = None
     for attempt in range(1, max_attempts + 1):
         try:
-            documents_page = session.get(_url("/documents"), timeout=10)
+            documents_page = session.get(_url("/documents"), timeout=10, headers=headers)
             upload_csrf = _csrf_token(documents_page.text)
             upload_response = session.post(
                 _url("/documents/upload"),
@@ -100,6 +103,7 @@ def _upload_document(filename: str):
                 },
                 allow_redirects=False,
                 timeout=10,
+                headers=headers,
             )
             if upload_response.status_code == 429:
                 time.sleep(backoff)
@@ -111,7 +115,7 @@ def _upload_document(filename: str):
             backoff = min(backoff * 2, 8)
     assert upload_response is not None
 
-    documents_response = session.get(_url("/documents"), timeout=10)
+    documents_response = session.get(_url("/documents"), timeout=10, headers=headers)
     return upload_response, documents_response.text.lower()
 
 
