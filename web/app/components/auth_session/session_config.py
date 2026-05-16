@@ -12,7 +12,6 @@ Configures Flask session cookies with the following security flags:
                
 """
 from datetime import timedelta
-import os
 
 def configure_session(app):
     app.config["SESSION_COOKIE_HTTPONLY"] = True    

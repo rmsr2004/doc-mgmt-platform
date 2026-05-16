@@ -28,9 +28,6 @@ LOGIN_RATE_LIMIT   = "10 per minute"
 LOCKOUT_THRESHOLD = 5
 LOCKOUT_DURATION  = timedelta(minutes=12)
 
-LOCKOUT_THRESHOLD = 5
-LOCKOUT_DURATION  = timedelta(minutes=12)
-
 def get_db():
     return psycopg2.connect(
         host=DB_HOST,
