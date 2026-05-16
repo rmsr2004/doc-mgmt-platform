@@ -70,23 +70,3 @@ def admin_required(fn):
         return fn(*args, **kwargs)
 
     return wrapper
-
-def admin_required(fn):
-    @functools.wraps(fn)
-    def wrapper(*args, **kwargs):
-        if not session.get("is_admin"):
-            flash("You do not have permission to access this page.", "error")
-            return redirect(url_for("index.index"))
-        return fn(*args, **kwargs)
-
-    return wrapper
-
-def admin_required(fn):
-    @functools.wraps(fn)
-    def wrapper(*args, **kwargs):
-        if not session.get("is_admin"):
-            flash("You do not have permission to access this page.", "error")
-            return redirect(url_for("index.index"))
-        return fn(*args, **kwargs)
-
-    return wrapper

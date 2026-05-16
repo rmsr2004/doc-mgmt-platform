@@ -4,13 +4,6 @@ import traceback
 
 from app.config import get_db
 from app.shared.result.Result import Error
-
-# we should use this to log the queries
-def _log_query(sql, params):
-    try:
-        return sql % params
-    except Exception:
-        return sql
     
 def query_fetch_one(sql: str, params: tuple=()):
     try:
