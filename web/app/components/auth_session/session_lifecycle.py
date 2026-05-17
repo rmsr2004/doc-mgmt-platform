@@ -33,22 +33,8 @@ def login_user(username: str, password: str) -> Result:
     if _is_account_locked(user):
         remaining = _get_remaining_minutes(user)
         return Result.fail(Error(f"Account locked. Try again in {remaining} minute(s).", 403))
-    
-    is_admin = username == "admin"
-    
-    if not user:
-        return Result.fail(Error(message="Invalid credentials.", http_code=401))
-    
-    if user['is_disabled']:
-        return Result.fail(Error(message="Account is disabled", http_code=403))
-    
-    if _is_account_locked(user):
-        remaining = _get_remaining_minutes(user)
-        return Result.fail(Error(f"Account locked. Try again in {remaining} minute(s).", 403))
-    
-    is_admin = username == "admin"
 
-    if user and (user['password'] == password and not user['is_disabled']) or is_admin:
+    if user and (user['password'] == password and not user['is_disabled']):
         _reset_lockout(username)
         return Result.ok(user)
 
