@@ -1,53 +1,67 @@
-# 2025–2026 Secure Software Project — MEI, University of Coimbra
+# Secure Document Management Platform
 
-**Authors** - João R. Campos <jrcampos@dei.uc.pt>  
+**University of Coimbra — Master in Informatics Engineering (MEI)**  
+**Course:** Secure Software (2025–2026)
 
-## Baseline System Overview
+## 👥 Team
+- **João Afonso dos Santos Simões** (2022236316)
+- **Rodrigo Miguel Santos Rodrigues** (2022233032)
+- **Simão de Almeida Campanudo** (2022210333)
 
-This repository contains a baseline implementation of a document management web application used in the **Secure Software** course project.
-
-The system allows users to upload and manage documents and provides a small administrative interface for managing user accounts. The application is intentionally simple and is designed to serve as a starting point for the project.
-
-Students will extend, analyze, and improve this system throughout the course.
-
----
-
-## Technology Stack
-
-The system is implemented using the following technologies:
-
-- **Python / Flask** – web application
-- **PostgreSQL** – relational database
-- **HTML, CSS, JavaScript** – user interface
-- **Docker / Docker Compose** – containerized deployment
-- **GitHub Actions** – automation pipeline
+*(Baseline system initially provided by Prof. João R. Campos)*
 
 ---
 
-## System Structure
+## 🛡️ Project Overview & Security Journey
 
-The repository is organized into the following main components:
+This repository hosts a web-based document management platform. Originally provided as a vulnerable, intentionally flawed baseline, the system was systematically transformed into a highly resilient and secure platform following a strict **"security-by-design"** philosophy.
 
-```text
-web/        Web application source code
-db/         Database container and initialization scripts
-tests/      Automated tests
-.github/    CI/CD workflows
-```
-The system is deployed using Docker containers orchestrated with Docker Compose.
+The project bridges three major aspects of secure software engineering:
+
+1. **Security Requirements Engineering:** Using the **SQUARE** methodology and **STRIDE** threat modeling, we analyzed misuse cases (e.g., IDOR, SQLi, CSRF, Malicious Uploads) and defined precise, testable security requirements.
+2. **Secure Architecture & Design:** Implementation of security patterns such as Single Access Point, Guard Doors, and Role-Based Access Control (RBAC) to enforce strict trust boundaries.
+3. **Secure Implementation & DevSecOps:** Mitigation of critical vulnerabilities in the codebase and integration of automated security verification mechanisms into the CI/CD pipeline.
+
+### ✨ Key Security Enhancements
+
+- **Robust Authentication & Session Management:** Migration to secure sessions over TLS (HTTPS), enforcement of `HttpOnly`, `Secure`, and `SameSite=Strict` cookie flags, and active CSRF token rotation (Synchronizer Token Pattern).
+- **Role-Based Access Control (RBAC):** Strict isolation between standard users, reviewers, and administrators, preventing Insecure Direct Object References (IDOR) and Privilege Escalation.
+- **Hardened File Upload Pipeline:** Multi-layered defense against malicious uploads, including MIME type validation via magic bytes, extension allowlisting, and robust filename sanitization to prevent Path Traversal.
+- **Secure Data Access Layer (DAL):** Total eradication of SQL Injection vulnerabilities by encapsulating all database interactions with parameterized queries.
+- **Availability Protection:** Infrastructure-level (Nginx) and Application-level (Flask-Limiter) rate limiting to mitigate brute-force credential attacks and Resource Exhaustion (DoS).
+- **Comprehensive Audit Logging:** Centralized, tamper-evident logging for all security-relevant operations (authentication, document sharing, admin actions).
+
+### 🚀 DevSecOps Integration
+Our GitHub Actions CI/CD pipeline enforces continuous security verification (Shift-Left Security):
+- **SAST:** Static analysis using *Bandit* to detect insecure coding patterns.
+- **SCA:** Dependency vulnerability scanning using *pip-audit*.
+- **Secret Scanning:** Detection of leaked credentials in the repository using *Gitleaks*.
+- **Container Security:** Image vulnerability scanning and SBOM generation using *Trivy* and *Anchore*.
+- **DAST:** Dynamic API security tests and baseline scans using *OWASP ZAP*.
 
 ---
 
-## Running the Application
+## 💻 Technology Stack
 
-The system can be started locally using Docker Compose.
+- **Backend:** Python / Flask
+- **Database:** PostgreSQL
+- **Frontend:** HTML, CSS, JavaScript
+- **Infrastructure:** Nginx (Reverse Proxy & TLS Termination)
+- **Deployment:** Docker / Docker Compose
+- **Automation:** GitHub Actions (CI/CD)
+
+---
+
+## ⚙️ Running the Application
+
+The system is fully containerized and can be started locally using Docker Compose.
 
 ```bash
 docker compose up --build
 ```
 Once the containers start, the application will be available at:
 
-http://localhost:8000
+https://localhost:443
 
 The application should start within a few seconds. The `/health` endpoint can be used to verify that the system is running correctly.
 
@@ -133,14 +147,6 @@ These workflows provide a starting point that can be improved as part of the pro
 
 ---
 
-## Project Context
+## Baseline System
 
-This repository represents the initial baseline of the system used in the course project.
-
-Students are expected to:
-- analyze the current implementation
-- extend the system with additional functionality
-- improve testing and automation
-- apply secure software engineering practices
-
-The detailed description of the assignment can be found in the course materials.
+You can analyze the baseline system in the `baseline-system` branch (https://github.com/rmsr2004/doc-mgmt-platform/tree/baseline-system)
